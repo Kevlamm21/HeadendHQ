@@ -1,0 +1,11 @@
+**/.git
+**/.vs
+**/.github
+**/bin
+**/obj
+**/TestResults
+Dockerfile
+.dockerignore
+README.md
+LICENSE
+CLAUDE.md
