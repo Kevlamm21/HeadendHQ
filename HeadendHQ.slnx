@@ -4,6 +4,6 @@
   </Folder>
   <Project Path="src/HeadendHQ.Core/HeadendHQ.Core.csproj" Id="e0569d6a-3352-44b4-b137-0e774f3a1dfc" />
   <Project Path="src/HeadendHQ.Data/HeadendHQ.Data.csproj" Id="493afe61-9c77-44c9-8c86-bcf42ab5741f" />
-  <Project Path="src/HeadendHQ.ScheduleDirect/HeadendHQ.HdHomerun.csproj" Id="8af35b77-8ba9-4008-846b-5588d93897b3" />
+  <Project Path="src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj" />
   <Project Path="src/HeadendHQ.Web/HeadendHQ.Web.csproj" />
 </Solution>
