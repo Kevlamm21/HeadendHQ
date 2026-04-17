@@ -20,7 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
     <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
-    <ProjectReference Include="..\HeadendHQ.ScheduleDirect\HeadendHQ.HdHomerun.csproj" />
   </ItemGroup>
 
 </Project>
