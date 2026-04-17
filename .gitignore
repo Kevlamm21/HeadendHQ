@@ -59,3 +59,8 @@ nunit-*.xml
 
 # User secrets
 appsettings.secrets.json
+
+# SQLite database files (runtime data, not source)
+*.db
+*.db-shm
+*.db-wal
