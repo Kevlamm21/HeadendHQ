@@ -9,6 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Mediator.Abstractions" Version="3.0.1" />
+    <PackageReference Include="Mediator.SourceGenerator" Version="3.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -18,9 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HeadendHQ.AdbMapping\HeadendHQ.AdbMapping.csproj" />
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
     <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
+    <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
   </ItemGroup>
 
 </Project>
