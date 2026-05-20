@@ -1,13 +1,20 @@
+using HeadendHQ.AdbMapping;
+using HeadendHQ.AdbMapping.Extractors;
 using HeadendHQ.Core.HdHomerun;
+using HeadendHQ.Core.SportingEvents;
 using HeadendHQ.Data;
 using HeadendHQ.HdHomerun;
+using HeadendHQ.Nba;
 using HeadendHQ.Web.HdHomerun;
+using HeadendHQ.Web.SportingEvents;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using ServiceLifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
 
 // Database
 var dbPath = builder.Configuration["Database:Path"] ?? "headendhq.db";
@@ -21,13 +28,33 @@ builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
 });
 builder.Services.AddHostedService<HdHomerunXmltvJob>();
 
+// Schedule scraper
+builder.Services.Configure<ScheduleScraperOptions>(
+    builder.Configuration.GetSection(ScheduleScraperOptions.SectionName));
+
+builder.Services.AddHttpClient<NbaScheduleSource>(client =>
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; HeadendHQ/1.0)"));
+builder.Services.AddTransient<IScheduleSource>(sp => sp.GetRequiredService<NbaScheduleSource>());
+
+builder.Services.AddHostedService<ScheduleScraperJob>();
+
+// Sporting event repository
+builder.Services.AddScoped<ISportingEventRepository, SportingEventRepository>();
+
+// ADB mapping
+builder.Services.AddSingleton<IAdbExtractor, NbaExtractor>();
+builder.Services.AddSingleton<IAdbExtractor, EspnExtractor>();
+builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
+builder.Services.AddSingleton<IAdbExtractor, PeacockExtractor>();
+builder.Services.AddScoped<IAdbMappingService, AdbMappingService>();
+
 var app = builder.Build();
 
-// Ensure database is created on startup
+// Apply pending migrations on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    await db.Database.MigrateAsync();
 }
 
 app.MapOpenApi();
@@ -43,5 +70,8 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
     .WithDescription("Returns the current health status of the API.");
 
 app.MapHdHomerunEndpoints();
+app.MapSportingEventEndpoints();
+app.MapScheduleScraperEndpoints();
+app.MapAdbMappingEndpoints();
 
 app.Run();

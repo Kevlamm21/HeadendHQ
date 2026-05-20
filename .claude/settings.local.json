@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\KLammers\\\\Personal\\\\United-Sports\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(xargs ls -la)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\KLammers\\\\Personal\\\\HeadendHQ\\\\HeadendHQ\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\KLammers\\\\Personal\\\\HeadendHQ\\\\HeadendHQ\" -Recurse -Directory | ForEach-Object { $_.FullName } | Sort-Object)",
+      "Bash(dotnet sln *)",
+      "Bash(xargs grep -l \"IMediator\\\\|ISender\\\\|\\\\.Send\\\\\\(\")",
+      "Bash(Remove-Item \"C:\\\\Users\\\\KLammers\\\\Personal\\\\HeadendHQ\\\\src\\\\HeadendHQ.Core\\\\SportingEvents\\\\ScrapedEvent.cs\" -ErrorAction Stop)",
+      "Bash(Remove-Item \"C:\\\\Users\\\\KLammers\\\\Personal\\\\HeadendHQ\\\\src\\\\HeadendHQ.Core\\\\SportingEvents\\\\CommandHandlers\\\\UpsertSportingEventHandler.cs\" -ErrorAction Stop)",
+      "Bash(Write-Output \"Deleted both files.\")",
+      "PowerShell(dotnet ef migrations *)",
+      "PowerShell(dotnet ef *)",
+      "PowerShell(dotnet tool update *)",
+      "Bash(xargs grep -l \"NBA\\\\|basketball\")",
+      "Bash(xargs grep -l \"class SportingEventRequest\\\\|record SportingEventRequest\")",
+      "Bash(grep -E \"\\(\\\\.cs$\\)\")"
     ]
   }
 }
