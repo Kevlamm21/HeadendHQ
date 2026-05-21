@@ -1,4 +1,5 @@
-using HeadendHQ.Core.HdHomerun;
+using HeadendHQ.Core.HdHomerun.CommandHandlers;
+using Mediator;
 
 namespace HeadendHQ.Web.HdHomerun;
 
@@ -6,9 +7,9 @@ public static class HdHomerunEndpoints
 {
     public static void MapHdHomerunEndpoints(this WebApplication app)
     {
-        app.MapGet("/hdhr/xmltv", async (IHdHomerunService service, CancellationToken ct) =>
+        app.MapGet("/hdhr/xmltv", async (IMediator mediator, CancellationToken ct) =>
         {
-            var content = await service.GetXmltvContentAsync(ct);
+            var content = await mediator.Send(new GetHdHomerunXmltvQuery(), ct);
 
             if (content is null)
                 return Results.NotFound(new { message = "XMLTV data not yet available. It will be populated on the next refresh." });
