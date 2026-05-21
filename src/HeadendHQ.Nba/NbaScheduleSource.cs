@@ -124,7 +124,7 @@ public class NbaScheduleSource(
         {
             try
             {
-                return await EspnLinkResolver.ResolveAsync(httpClient, videoLink, ct);
+                return await EspnLinkResolver.ResolveAsync(videoLink, ct);
             }
             catch (Exception ex)
             {
