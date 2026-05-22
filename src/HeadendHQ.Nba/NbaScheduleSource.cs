@@ -11,6 +11,7 @@ namespace HeadendHQ.Nba;
 public class NbaScheduleSource(
     HttpClient httpClient,
     IMediator mediator,
+    ISportingEventRepository repository,
     IOptions<ScheduleScraperOptions> options,
     ILogger<NbaScheduleSource> logger) : IScheduleSource
 {
@@ -66,13 +67,17 @@ public class NbaScheduleSource(
                     continue;
 
                 var service = BroadcasterMap[broadcaster.BroadcasterDisplay];
-                var eventUrl = await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
+                var title = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName} vs {game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
+
+                var existing = await repository.FindByProviderTitleStartAsync("NBA.com", title, startUtc, ct);
+                var eventUrl = existing?.EventUrl
+                    ?? await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
                 if (eventUrl is null)
                     continue;
 
                 var request = new SportingEventRequest
                 {
-                    Title = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName} vs. {game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}",
+                    Title = title,
                     Sport = Sport.Basketball,
                     StreamingService = service,
                     EventUrl = eventUrl,

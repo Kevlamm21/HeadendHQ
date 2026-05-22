@@ -51,6 +51,9 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<string>("AdbCommand")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DummyVideoPath")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("EndUtc")
                         .HasColumnType("TEXT");
 

@@ -21,6 +21,7 @@ public class SportingEvent
     public StreamingService StreamingService { get; set; }
     public string EventUrl { get; set; } = string.Empty;
     public string? AdbCommand { get; set; }
+    public string? DummyVideoPath { get; set; }
     public string Provider { get; set; } = string.Empty;
     public DateTime StartUtc { get; set; }
     public DateTime EndUtc { get; set; }
