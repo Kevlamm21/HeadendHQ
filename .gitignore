@@ -64,3 +64,6 @@ appsettings.secrets.json
 *.db
 *.db-shm
 *.db-wal
+
+# Claude
+.claude

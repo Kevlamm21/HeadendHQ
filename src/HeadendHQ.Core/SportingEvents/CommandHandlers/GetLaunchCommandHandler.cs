@@ -15,7 +15,7 @@ public class GetLaunchCommandHandler(ISportingEventRepository repository)
         var evt = await repository.GetByTitleAsync(command.Title, ct);
 
         if (evt is null)
-            throw new InvalidOperationException($"No sporting event found with title '{command.Title}'.");
+            throw new InvalidOperationException($"No sporting event with a dummy video found for title '{command.Title}'.");
 
         if (evt.AdbCommand is null)
             throw new InvalidOperationException($"No ADB command has been mapped for '{command.Title}' yet.");

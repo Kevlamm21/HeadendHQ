@@ -29,7 +29,7 @@ public class SportingEventRepository(AppDbContext db) : ISportingEventRepository
     public async Task<SportingEvent?> GetByTitleAsync(string title, CancellationToken ct = default)
     {
         return await db.SportingEvents
-            .Where(e => e.Title.ToLower() == title.ToLower())
+            .Where(e => e.Title.ToLower() == title.ToLower() && e.DummyVideoPath != null)
             .OrderBy(e => e.StartUtc)
             .FirstOrDefaultAsync(ct);
     }

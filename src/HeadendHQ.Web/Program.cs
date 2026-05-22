@@ -3,6 +3,7 @@ using HeadendHQ.AdbMapping.Extractors;
 using HeadendHQ.Core.HdHomerun;
 using HeadendHQ.Core.SportingEvents;
 using HeadendHQ.Data;
+using HeadendHQ.DummyVideo;
 using HeadendHQ.HdHomerun;
 using HeadendHQ.Nba;
 using HeadendHQ.Web.HdHomerun;
@@ -54,6 +55,13 @@ builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, PeacockExtractor>();
 builder.Services.AddScoped<IAdbMappingService, AdbMappingService>();
 
+// Dummy video
+builder.Services.Configure<DummyVideoOptions>(
+    builder.Configuration.GetSection(DummyVideoOptions.SectionName));
+builder.Services.AddScoped<IVideoCreationService, VideoCreationService>();
+builder.Services.AddScoped<IVideoCleanupService, VideoCleanupService>();
+builder.Services.AddHostedService<DummyVideoJob>();
+
 var app = builder.Build();
 
 // Apply pending migrations on startup
@@ -79,5 +87,6 @@ app.MapHdHomerunEndpoints();
 app.MapSportingEventEndpoints();
 app.MapScheduleScraperEndpoints();
 app.MapAdbMappingEndpoints();
+app.MapDummyVideoEndpoints();
 
 app.Run();

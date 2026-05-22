@@ -26,8 +26,13 @@
     <ProjectReference Include="..\HeadendHQ.AdbMapping\HeadendHQ.AdbMapping.csproj" />
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
     <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
+    <ProjectReference Include="..\HeadendHQ.DummyVideo\HeadendHQ.DummyVideo.csproj" />
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
     <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
