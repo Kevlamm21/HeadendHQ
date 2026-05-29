@@ -19,6 +19,9 @@ builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetim
 
 // Database
 var dbPath = builder.Configuration["Database:Path"] ?? "headendhq.db";
+var dbDir = Path.GetDirectoryName(dbPath);
+if (!string.IsNullOrEmpty(dbDir))
+    Directory.CreateDirectory(dbDir);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
