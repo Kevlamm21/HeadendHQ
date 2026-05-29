@@ -24,9 +24,25 @@ public class ScheduleScraperJob(
 
     private async Task RunJobAsync(CancellationToken ct)
     {
-        using var scope = scopeFactory.CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        await mediator.Send(new ScrapeSchedulesCommand(), ct);
+        logger.LogInformation("Schedule scrape job starting.");
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            var result = await mediator.Send(new ScrapeSchedulesCommand(), ct);
+
+            if (result.SourceErrors.Count > 0)
+                logger.LogWarning(
+                    "Schedule scrape completed with {ErrorCount} source error(s): {Errors}",
+                    result.SourceErrors.Count, result.SourceErrors);
+            else
+                logger.LogInformation(
+                    "Schedule scrape completed. {Count} events upserted.", result.TotalUpserted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Schedule scrape job failed unexpectedly.");
+        }
     }
 
     private static TimeSpan GetDelayUntilNextRun()

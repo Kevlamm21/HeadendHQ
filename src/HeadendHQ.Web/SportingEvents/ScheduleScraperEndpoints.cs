@@ -10,8 +10,8 @@ public static class ScheduleScraperEndpoints
     {
         app.MapPost("/sporting-events/scrape", async (IMediator mediator, CancellationToken ct) =>
         {
-            await mediator.Send(new ScrapeSchedulesCommand(), ct);
-            return Results.Ok(new { message = "Scrape completed." });
+            var result = await mediator.Send(new ScrapeSchedulesCommand(), ct);
+            return Results.Ok(result);
         })
         .WithTags("Sporting Events")
         .WithName("TriggerScrape")

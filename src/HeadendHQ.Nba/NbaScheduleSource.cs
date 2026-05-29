@@ -5,11 +5,11 @@ using HeadendHQ.Nba.Models;
 using Mediator;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Playwright;
 
 namespace HeadendHQ.Nba;
 
 public class NbaScheduleSource(
-    HttpClient httpClient,
     IMediator mediator,
     ISportingEventRepository repository,
     IOptions<ScheduleScraperOptions> options,
@@ -29,20 +29,20 @@ public class NbaScheduleSource(
 
     public Sport Sport => Sport.Basketball;
 
-    public async Task FetchEventsAsync(CancellationToken ct)
+    public async Task<int> FetchEventsAsync(CancellationToken ct)
     {
         var opts = options.Value;
 
         if (opts.EnabledStreamingServices.Count == 0)
         {
             logger.LogWarning("No streaming services are enabled in ScheduleScraper config. Skipping NBA scrape.");
-            return;
+            return 0;
         }
 
         var now = DateTime.UtcNow;
         var windowEnd = now.AddDays(opts.ScrapeWindowDays);
 
-        var json = await httpClient.GetStringAsync(ScheduleUrl, ct);
+        var json = await FetchScheduleJsonAsync(ct);
         var schedule = JsonSerializer.Deserialize<NbaScheduleRoot>(json)
             ?? throw new InvalidOperationException("NBA schedule response deserialized to null.");
 
@@ -70,9 +70,9 @@ public class NbaScheduleSource(
                 var title = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName} vs {game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
 
                 var existing = await repository.FindByProviderTitleStartAsync("NBA.com", title, startUtc, ct);
-                var eventUrl = existing?.EventUrl
-                    ?? await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
-                if (eventUrl is null)
+                var resolvedUrl = await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
+                var eventUrl = resolvedUrl ?? existing?.EventUrl ?? broadcaster.VideoLink;
+                if (string.IsNullOrEmpty(eventUrl))
                     continue;
 
                 var request = new SportingEventRequest
@@ -92,6 +92,47 @@ public class NbaScheduleSource(
         }
 
         logger.LogInformation("NBA scrape complete. {Count} events upserted in the next {Days} days.", upserted, opts.ScrapeWindowDays);
+        return upserted;
+    }
+
+    private static async Task<string> FetchScheduleJsonAsync(CancellationToken ct)
+    {
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new()
+        {
+            Headless = true,
+            Args = ["--disable-blink-features=AutomationControlled"]
+        });
+
+        await using var context = await browser.NewContextAsync(new()
+        {
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+        });
+
+        var response = await context.APIRequest.GetAsync(ScheduleUrl, new()
+        {
+            Headers = new Dictionary<string, string>
+            {
+                { "accept",              "*/*" },
+                { "accept-language",     "en-US,en;q=0.9" },
+                { "dnt",                 "1" },
+                { "origin",              "https://www.nba.com" },
+                { "referer",             "https://www.nba.com/" },
+                { "sec-ch-ua",           "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"" },
+                { "sec-ch-ua-mobile",    "?0" },
+                { "sec-ch-ua-platform",  "\"Windows\"" },
+                { "sec-fetch-dest",      "empty" },
+                { "sec-fetch-mode",      "cors" },
+                { "sec-fetch-site",      "same-site" },
+            }
+        });
+
+        ct.ThrowIfCancellationRequested();
+
+        if (!response.Ok)
+            throw new InvalidOperationException($"NBA CDN returned HTTP {response.Status}.");
+
+        return await response.TextAsync();
     }
 
     private static NbaBroadcaster? FindEnabledBroadcaster(
