@@ -4,26 +4,32 @@ using Microsoft.Extensions.Options;
 
 namespace HeadendHQ.Core.SportingEvents.CommandHandlers;
 
-public record ScrapeSchedulesCommand : ICommand<Unit>;
+public record ScrapeSchedulesCommand : ICommand<ScrapeSchedulesResult>;
+
+public record ScrapeSchedulesResult(int TotalUpserted, List<string> SourceErrors);
 
 public class ScrapeSchedulesHandler(
     IEnumerable<IScheduleSource> sources,
     IMediator mediator,
     IOptions<ScheduleScraperOptions> options,
     ILogger<ScrapeSchedulesHandler> logger)
-    : ICommandHandler<ScrapeSchedulesCommand, Unit>
+    : ICommandHandler<ScrapeSchedulesCommand, ScrapeSchedulesResult>
 {
-    public async ValueTask<Unit> Handle(ScrapeSchedulesCommand command, CancellationToken ct)
+    public async ValueTask<ScrapeSchedulesResult> Handle(ScrapeSchedulesCommand command, CancellationToken ct)
     {
+        var totalUpserted = 0;
+        var sourceErrors = new List<string>();
+
         foreach (var source in sources)
         {
             try
             {
-                await source.FetchEventsAsync(ct);
+                totalUpserted += await source.FetchEventsAsync(ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to scrape events from {Sport}.", source.Sport);
+                sourceErrors.Add($"{source.Sport}: {ex.Message}");
             }
         }
 
@@ -45,6 +51,6 @@ public class ScrapeSchedulesHandler(
             logger.LogError(ex, "Cleanup of expired sporting events failed.");
         }
 
-        return Unit.Value;
+        return new ScrapeSchedulesResult(totalUpserted, sourceErrors);
     }
 }

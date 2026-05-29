@@ -33,14 +33,7 @@ builder.Services.AddHostedService<HdHomerunXmltvJob>();
 builder.Services.Configure<ScheduleScraperOptions>(
     builder.Configuration.GetSection(ScheduleScraperOptions.SectionName));
 
-builder.Services.AddHttpClient<NbaScheduleSource>(client =>
-{
-    client.DefaultRequestHeaders.UserAgent.ParseAdd(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-    client.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/plain, */*");
-    client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
-    client.DefaultRequestHeaders.Referrer = new Uri("https://www.nba.com/");
-});
+builder.Services.AddScoped<NbaScheduleSource>();
 builder.Services.AddTransient<IScheduleSource>(sp => sp.GetRequiredService<NbaScheduleSource>());
 
 builder.Services.AddHostedService<ScheduleScraperJob>();
