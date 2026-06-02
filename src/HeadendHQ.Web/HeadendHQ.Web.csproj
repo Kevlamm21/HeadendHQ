@@ -31,8 +31,4 @@
     <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>
