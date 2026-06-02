@@ -61,13 +61,6 @@ builder.Services.AddScoped<ICreationService, VideoCreationService>();
 builder.Services.AddScoped<ICleanupService, VideoCleanupService>();
 builder.Services.AddHostedService<DummyVideoJob>();
 
-// Dummy video
-builder.Services.Configure<DummyVideoOptions>(
-    builder.Configuration.GetSection(DummyVideoOptions.SectionName));
-builder.Services.AddScoped<IVideoCreationService, VideoCreationService>();
-builder.Services.AddScoped<IVideoCleanupService, VideoCleanupService>();
-builder.Services.AddHostedService<DummyVideoJob>();
-
 var app = builder.Build();
 
 // Apply pending migrations on startup
