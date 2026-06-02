@@ -1,13 +1,14 @@
 using HeadendHQ.AdbMapping;
 using HeadendHQ.AdbMapping.Extractors;
-using HeadendHQ.Core.HdHomerun;
-using HeadendHQ.Core.SportingEvents;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Options;
+using HeadendHQ.Core.Titles;
 using HeadendHQ.Data;
 using HeadendHQ.DummyVideo;
 using HeadendHQ.HdHomerun;
 using HeadendHQ.Nba;
 using HeadendHQ.Web.HdHomerun;
-using HeadendHQ.Web.SportingEvents;
+using HeadendHQ.Web.Titles;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using ServiceLifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime;
@@ -41,15 +42,24 @@ builder.Services.AddTransient<IScheduleSource>(sp => sp.GetRequiredService<NbaSc
 
 builder.Services.AddHostedService<ScheduleScraperJob>();
 
-// Sporting event repository
-builder.Services.AddScoped<ISportingEventRepository, SportingEventRepository>();
+// Data access
+builder.Services.AddScoped<IReadModel, EfReadModel>();
+builder.Services.AddScoped<IWorkspace, EfWorkspace>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 // ADB mapping
 builder.Services.AddSingleton<IAdbExtractor, NbaExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, EspnExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, PeacockExtractor>();
-builder.Services.AddScoped<IAdbMappingService, AdbMappingService>();
+builder.Services.AddScoped<AdbMappingService>();
+
+// Dummy video
+builder.Services.Configure<DummyVideoOptions>(
+    builder.Configuration.GetSection(DummyVideoOptions.SectionName));
+builder.Services.AddScoped<ICreationService, VideoCreationService>();
+builder.Services.AddScoped<ICleanupService, VideoCleanupService>();
+builder.Services.AddHostedService<DummyVideoJob>();
 
 // Dummy video
 builder.Services.Configure<DummyVideoOptions>(
@@ -80,7 +90,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
     .WithDescription("Returns the current health status of the API.");
 
 app.MapHdHomerunEndpoints();
-app.MapSportingEventEndpoints();
+app.MapTitleEndpoints();
 app.MapScheduleScraperEndpoints();
 app.MapAdbMappingEndpoints();
 app.MapDummyVideoEndpoints();

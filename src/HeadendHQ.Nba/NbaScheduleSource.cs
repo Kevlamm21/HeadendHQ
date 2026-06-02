@@ -1,6 +1,8 @@
 using System.Text.Json;
-using HeadendHQ.Core.SportingEvents;
-using HeadendHQ.Core.SportingEvents.CommandHandlers;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Options;
+using HeadendHQ.Core.Titles;
+using HeadendHQ.Core.Titles.CommandHandlers;
 using HeadendHQ.Nba.Models;
 using Mediator;
 using Microsoft.Extensions.Logging;
@@ -11,7 +13,6 @@ namespace HeadendHQ.Nba;
 
 public class NbaScheduleSource(
     IMediator mediator,
-    ISportingEventRepository repository,
     IOptions<ScheduleScraperOptions> options,
     ILogger<NbaScheduleSource> logger) : IScheduleSource
 {
@@ -26,8 +27,6 @@ public class NbaScheduleSource(
             { "Prime Video",  StreamingService.AmazonPrime },
             { "Peacock",      StreamingService.Peacock }
         };
-
-    public Sport Sport => Sport.Basketball;
 
     public async Task<int> FetchEventsAsync(CancellationToken ct)
     {
@@ -69,24 +68,22 @@ public class NbaScheduleSource(
                 var service = BroadcasterMap[broadcaster.BroadcasterDisplay];
                 var title = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName} vs {game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
 
-                var existing = await repository.FindByProviderTitleStartAsync("NBA.com", title, startUtc, ct);
                 var resolvedUrl = await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
-                var eventUrl = resolvedUrl ?? existing?.EventUrl ?? broadcaster.VideoLink;
-                if (string.IsNullOrEmpty(eventUrl))
-                    continue;
+                var eventUrl = resolvedUrl ?? broadcaster.VideoLink;
 
-                var request = new SportingEventRequest
+                var request = new TitleRequest
                 {
-                    Title = title,
-                    Sport = Sport.Basketball,
+                    Name = title,
+                    Type = TitleType.SportingEvent,
                     StreamingService = service,
+                    ExternalId = game.GameId,
                     EventUrl = eventUrl,
                     Provider = "NBA.com",
                     StartUtc = startUtc,
                     EndUtc = startUtc.AddHours(3)
                 };
 
-                await mediator.Send(new CreateSportingEventCommand(request), ct);
+                await mediator.Send(new CreateTitleCommand(request), ct);
                 upserted++;
             }
         }

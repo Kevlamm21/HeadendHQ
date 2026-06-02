@@ -1,4 +1,4 @@
-using HeadendHQ.Core.HdHomerun.CommandHandlers;
+using HeadendHQ.HdHomerun.CommandHandlers;
 using Mediator;
 
 namespace HeadendHQ.Web.HdHomerun;

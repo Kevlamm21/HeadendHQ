@@ -1,4 +1,4 @@
-namespace HeadendHQ.Core.SportingEvents;
+namespace HeadendHQ.DummyVideo;
 
 public class DummyVideoOptions
 {

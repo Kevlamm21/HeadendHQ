@@ -17,7 +17,7 @@ namespace HeadendHQ.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
 
-            modelBuilder.Entity("HeadendHQ.Core.HdHomerun.HdHomerunDevice", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Options.HdHomerunDeviceOptions", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -42,22 +42,37 @@ namespace HeadendHQ.Data.Migrations
                     b.ToTable("HdHomerunDevices");
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.SportingEvents.SportingEvent", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("AdbCommand")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DummyVideoPath")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("EndUtc")
+                    b.Property<DateTime?>("EndUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("EventUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -65,22 +80,84 @@ namespace HeadendHQ.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Sport")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("StartUtc")
+                    b.Property<DateTime?>("StartUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("StreamingService")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SportingEvents");
+                    b.ToTable("Titles");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
+                {
+                    b.OwnsOne("HeadendHQ.Core.Titles.TitleMetadata", "Metadata", b1 =>
+                        {
+                            b1.Property<Guid>("TitleId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("AwayTeam")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("ContentRating")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("Episode")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Genre")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("HomeTeam")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("League")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Plot")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<float?>("Rating")
+                                .HasColumnType("REAL");
+
+                            b1.Property<int?>("Season")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ShowTitle")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Studio")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Tagline")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("UniqueId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Venue")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("Year")
+                                .HasColumnType("INTEGER");
+
+                            b1.HasKey("TitleId");
+
+                            b1.ToTable("Titles");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TitleId");
+                        });
+
+                    b.Navigation("Metadata");
                 });
 #pragma warning restore 612, 618
         }

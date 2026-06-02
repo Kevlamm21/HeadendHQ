@@ -66,4 +66,7 @@ appsettings.secrets.json
 *.db-wal
 
 # Claude
-.claude
+/.claude
+
+#Dev Test Videos
+/TestVideos

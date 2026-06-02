@@ -1,11 +1,11 @@
-using HeadendHQ.Core.SportingEvents;
+using HeadendHQ.Core;
 using Mediator;
 
 namespace HeadendHQ.DummyVideo.EventHandlers;
 
 public record CreateDummyVideosCommand : ICommand<Unit>;
 
-public class CreateDummyVideosHandler(IVideoCreationService videoCreationService)
+public class CreateDummyVideosHandler(ICreationService videoCreationService)
     : ICommandHandler<CreateDummyVideosCommand, Unit>
 {
     public async ValueTask<Unit> Handle(CreateDummyVideosCommand command, CancellationToken ct)
