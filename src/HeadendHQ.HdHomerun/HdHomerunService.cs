@@ -1,5 +1,6 @@
 using System.Text.Json;
-using HeadendHQ.Core.HdHomerun;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Options;
 using HeadendHQ.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -45,7 +46,7 @@ public class HdHomerunService(
 
         if (device is null)
         {
-            device = new HdHomerunDevice();
+            device = new HdHomerunDeviceOptions();
             dbContext.HdHomerunDevices.Add(device);
         }
 

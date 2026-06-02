@@ -1,4 +1,4 @@
-using HeadendHQ.Core.HdHomerun;
+using HeadendHQ.Core;
 
 namespace HeadendHQ.Web.HdHomerun;
 

@@ -1,10 +1,12 @@
-using System.Text.RegularExpressions;
-using HeadendHQ.Core.SportingEvents;
+﻿using System.Text.RegularExpressions;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.AdbMapping.Extractors;
 
 public class EspnExtractor : IAdbExtractor
 {
+    //need to check for alternate patterns & send to ESPN link resolver if provided event url does not come in this id format
     private static readonly Regex UuidPattern = new(
         @"\/id\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);

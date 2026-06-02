@@ -1,6 +1,7 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
-using HeadendHQ.Core.SportingEvents;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.AdbMapping.Extractors;
 

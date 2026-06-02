@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Text;
-using HeadendHQ.Core.SportingEvents;
-using HeadendHQ.Data;
-using Microsoft.EntityFrameworkCore;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Titles;
+using HeadendHQ.Core.Titles.Specifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -10,8 +10,9 @@ namespace HeadendHQ.DummyVideo;
 
 public class VideoCreationService(
     IOptions<DummyVideoOptions> options,
-    AppDbContext db,
-    ILogger<VideoCreationService> logger) : IVideoCreationService
+    IWorkspace workspace,
+    IUnitOfWork uow,
+    ILogger<VideoCreationService> logger) : ICreationService
 {
     private static readonly string TemplatePath =
         Path.Combine(AppContext.BaseDirectory, "Assets", "3hr_template.mp4");
@@ -22,13 +23,11 @@ public class VideoCreationService(
         var todayUtcStart = TimeZoneInfo.ConvertTimeToUtc(todayLocalStart, TimeZoneInfo.Local);
         var todayUtcEnd = TimeZoneInfo.ConvertTimeToUtc(todayLocalStart.AddDays(1), TimeZoneInfo.Local);
 
-        var pending = await db.SportingEvents
-            .Where(e => e.DummyVideoPath == null && e.StartUtc >= todayUtcStart && e.StartUtc < todayUtcEnd)
-            .ToListAsync(ct);
+        var pending = await workspace.Load(new TitlesNeedingVideoTodaySpec(todayUtcStart, todayUtcEnd), ct);
 
         if (pending.Count == 0)
         {
-            logger.LogInformation("Video creation: no pending events for today.");
+            logger.LogInformation("Video creation: no pending titles for today.");
             return;
         }
 
@@ -41,35 +40,37 @@ public class VideoCreationService(
         var created = 0;
         var failed = 0;
 
-        foreach (var evt in pending)
+        foreach (var title in pending)
         {
             try
             {
-                evt.DummyVideoPath = await CreateVideoAsync(evt, ct);
+                title.DummyVideoPath = await CreateVideoAsync(title, ct);
                 created++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Failed to create video for event {Id} ({Title}).", evt.Id, evt.Title);
+                logger.LogError(ex, "Failed to create video for title {Id} ({Name}).", title.Id, title.Name);
                 failed++;
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        await uow.SaveChanges(ct);
         logger.LogInformation("Video creation complete. Created: {Created}, Failed: {Failed}.", created, failed);
     }
 
-    private async Task<string> CreateVideoAsync(SportingEvent evt, CancellationToken ct)
+    private async Task<string> CreateVideoAsync(Title title, CancellationToken ct)
     {
-        var eventFolder = Path.Combine(options.Value.LibraryPath, evt.Title);
+        var eventFolder = Path.Combine(options.Value.LibraryPath, title.Name);
         Directory.CreateDirectory(eventFolder);
 
-        var videoPath = Path.Combine(eventFolder, $"{evt.Title}.mp4");
+        var videoPath = Path.Combine(eventFolder, $"{title.Name}.mp4");
 
         if (File.Exists(videoPath))
             return videoPath;
 
-        var duration = evt.EndUtc - evt.StartUtc;
+        var startUtc = title.StartUtc!.Value;
+        var endUtc = title.EndUtc ?? startUtc.AddHours(3);
+        var duration = endUtc - startUtc;
 
         if (duration.TotalHours >= 3)
         {
