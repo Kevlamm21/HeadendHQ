@@ -4,9 +4,12 @@ WORKDIR /src
 COPY ["src/HeadendHQ.Web/HeadendHQ.Web.csproj", "src/HeadendHQ.Web/"]
 COPY ["src/HeadendHQ.Core/HeadendHQ.Core.csproj", "src/HeadendHQ.Core/"]
 COPY ["src/HeadendHQ.Data/HeadendHQ.Data.csproj", "src/HeadendHQ.Data/"]
+COPY ["src/HeadendHQ.Mediator/HeadendHQ.Mediator.csproj", "src/HeadendHQ.Mediator/"]
 COPY ["src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj", "src/HeadendHQ.HdHomerun/"]
 COPY ["src/HeadendHQ.Nba/HeadendHQ.Nba.csproj", "src/HeadendHQ.Nba/"]
-COPY ["src/HeadendHQ.AdbMapping/HeadendHQ.AdbMapping.csproj", "src/HeadendHQ.AdbMapping/"]
+COPY ["src/HeadendHQ.Espn/HeadendHQ.Espn.csproj", "src/HeadendHQ.Espn/"]
+COPY ["src/HeadendHQ.AmazonPrime/HeadendHQ.AmazonPrime.csproj", "src/HeadendHQ.AmazonPrime/"]
+COPY ["src/HeadendHQ.Peacock/HeadendHQ.Peacock.csproj", "src/HeadendHQ.Peacock/"]
 COPY ["src/HeadendHQ.DummyVideo/HeadendHQ.DummyVideo.csproj", "src/HeadendHQ.DummyVideo/"]
 
 RUN dotnet restore "src/HeadendHQ.Web/HeadendHQ.Web.csproj"
