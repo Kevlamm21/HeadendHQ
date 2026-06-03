@@ -1,32 +1,32 @@
 using System.Text.Json;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Options;
-using HeadendHQ.Data;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using HeadendHQ.Core.HdHomerun;
+using HeadendHQ.Core.Shared;
+using HeadendHQ.HdHomerun.Settings;
+using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.HdHomerun;
 
 public class HdHomerunService(
     HttpClient httpClient,
-    AppDbContext dbContext,
-    IConfiguration configuration,
+    IWorkspace workspace,
+    IMediator mediator,
     ILogger<HdHomerunService> logger) : IHdHomerunService
 {
     public async Task RefreshXmltvAsync(CancellationToken cancellationToken = default)
     {
-        var deviceUrl = configuration["HdHomerun:DeviceUrl"];
+        var config = await mediator.Send(new GetHdHomerunSettingsQuery(), cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(deviceUrl))
+        if (string.IsNullOrWhiteSpace(config.DeviceUrl))
         {
-            logger.LogError("HdHomerun:DeviceUrl is not configured. Set the HdHomerun__DeviceUrl environment variable.");
+            logger.LogError("HdHomerun DeviceUrl is not configured. Update it via the settings endpoint.");
             return;
         }
 
-        logger.LogInformation("Fetching HDHomeRun device info from {Url}", deviceUrl);
+        logger.LogInformation("Fetching HDHomeRun device info from {Url}", config.DeviceUrl);
 
-        var discoverJson = await httpClient.GetStringAsync(deviceUrl, cancellationToken);
+        var discoverJson = await httpClient.GetStringAsync(config.DeviceUrl, cancellationToken);
         using var doc = JsonDocument.Parse(discoverJson);
 
         if (!doc.RootElement.TryGetProperty("DeviceAuth", out var deviceAuthElement))
@@ -42,27 +42,18 @@ public class HdHomerunService(
 
         var xmltvContent = await httpClient.GetStringAsync(xmltvUrl, cancellationToken);
 
-        var device = await dbContext.HdHomerunDevices.FirstOrDefaultAsync(cancellationToken: cancellationToken);
+        var existing = await workspace.LoadSingleOrDefault(AllSpecification<XmltvCache>.Instance, cancellationToken);
+        if (existing is not null)
+            workspace.Remove(existing);
 
-        if (device is null)
-        {
-            device = new HdHomerunDeviceOptions();
-            dbContext.HdHomerunDevices.Add(device);
-        }
+        workspace.Add(new XmltvCache { XmltvContent = xmltvContent });
 
-        device.DeviceAuth = deviceAuth;
-        device.XmltvUrl = xmltvUrl;
-        device.XmltvContent = xmltvContent;
-        device.LastUpdated = DateTime.UtcNow;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        logger.LogInformation("HDHomeRun XMLTV content updated successfully at {Time}", device.LastUpdated);
+        logger.LogInformation("HDHomeRun XMLTV content updated successfully.");
     }
 
     public async Task<string?> GetXmltvContentAsync(CancellationToken cancellationToken = default)
     {
-        var device = await dbContext.HdHomerunDevices.FirstOrDefaultAsync(cancellationToken: cancellationToken);
-        return device?.XmltvContent;
+        var cache = await workspace.LoadSingleOrDefault(AllSpecification<XmltvCache>.Instance, cancellationToken);
+        return cache?.XmltvContent;
     }
 }

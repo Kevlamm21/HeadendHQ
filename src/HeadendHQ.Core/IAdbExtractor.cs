@@ -5,5 +5,5 @@ namespace HeadendHQ.Core;
 public interface IAdbExtractor
 {
     StreamingService Service { get; }
-    string BuildCommand(string eventUrl);
+    Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct);
 }

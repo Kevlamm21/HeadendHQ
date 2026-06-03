@@ -1,3 +1,5 @@
+using HeadendHQ.Core.Shared;
+
 namespace HeadendHQ.Core.Titles.Specifications;
 
 public class TitlesNeedingVideoTodaySpec(DateTime todayUtcStart, DateTime todayUtcEnd) : ISpecification<Title>

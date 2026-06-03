@@ -1,30 +1,35 @@
-using HeadendHQ.AdbMapping;
-using HeadendHQ.AdbMapping.Extractors;
+using HeadendHQ.AmazonPrime;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Options;
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Data;
 using HeadendHQ.DummyVideo;
+using HeadendHQ.Espn;
 using HeadendHQ.HdHomerun;
+using HeadendHQ.Mediator;
 using HeadendHQ.Nba;
+using HeadendHQ.Peacock;
+using HeadendHQ.Web.CronJobs;
 using HeadendHQ.Web.HdHomerun;
+using HeadendHQ.Web.Settings;
 using HeadendHQ.Web.Titles;
-using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
-using ServiceLifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.ConfigureMediator(services => services.AddMediator(options =>
+{
+    options.ServiceLifetime = ServiceLifetime.Transient;
+}));
+
 builder.Services.AddOpenApi();
-builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 // Database
-var dbPath = builder.Configuration["Database:Path"] ?? "headendhq.db";
-var dbDir = Path.GetDirectoryName(dbPath);
-if (!string.IsNullOrEmpty(dbDir))
-    Directory.CreateDirectory(dbDir);
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+var dbPath = builder.Configuration["Database:Path"];
+builder.ConfigureDatabase(dbPath);
 
 // HDHomeRun
 builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
@@ -34,41 +39,29 @@ builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
 builder.Services.AddHostedService<HdHomerunXmltvJob>();
 
 // Schedule scraper
-builder.Services.Configure<ScheduleScraperOptions>(
-    builder.Configuration.GetSection(ScheduleScraperOptions.SectionName));
-
-builder.Services.AddScoped<NbaScheduleSource>();
-builder.Services.AddTransient<IScheduleSource>(sp => sp.GetRequiredService<NbaScheduleSource>());
-
+builder.Services.AddScoped<NbaScheduleScraper>();
+builder.Services.AddTransient<IScheduleScraper>(sp => sp.GetRequiredService<NbaScheduleScraper>());
 builder.Services.AddHostedService<ScheduleScraperJob>();
 
-// Data access
-builder.Services.AddScoped<IReadModel, EfReadModel>();
-builder.Services.AddScoped<IWorkspace, EfWorkspace>();
-builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-
 // ADB mapping
+builder.Services.AddSingleton<NbaLinkResolver>();
 builder.Services.AddSingleton<IAdbExtractor, NbaExtractor>();
+builder.Services.AddSingleton<EspnLinkResolver>();
 builder.Services.AddSingleton<IAdbExtractor, EspnExtractor>();
-builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
+builder.Services.AddSingleton<PeacockLinkResolver>();
 builder.Services.AddSingleton<IAdbExtractor, PeacockExtractor>();
+builder.Services.AddSingleton<AmazonPrimeLinkResolver>();
+builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
 builder.Services.AddScoped<AdbMappingService>();
 
 // Dummy video
-builder.Services.Configure<DummyVideoOptions>(
-    builder.Configuration.GetSection(DummyVideoOptions.SectionName));
 builder.Services.AddScoped<ICreationService, VideoCreationService>();
 builder.Services.AddScoped<ICleanupService, VideoCleanupService>();
 builder.Services.AddHostedService<DummyVideoJob>();
 
 var app = builder.Build();
 
-// Apply pending migrations on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-}
+await app.InitializeDatabase();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
@@ -87,5 +80,6 @@ app.MapTitleEndpoints();
 app.MapScheduleScraperEndpoints();
 app.MapAdbMappingEndpoints();
 app.MapDummyVideoEndpoints();
+app.MapSettingsEndpoints();
 
 app.Run();

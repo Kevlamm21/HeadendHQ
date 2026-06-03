@@ -1,6 +1,8 @@
-﻿namespace HeadendHQ.Core.Titles;
+﻿using HeadendHQ.Core.Shared;
 
-public class Title
+namespace HeadendHQ.Core.Titles;
+
+public class Title : IEntity<Guid>
 {
     private Title() { }
 

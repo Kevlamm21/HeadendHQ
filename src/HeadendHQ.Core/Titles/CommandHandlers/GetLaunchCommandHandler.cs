@@ -1,3 +1,4 @@
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles.Specifications;
 using Mediator;
 

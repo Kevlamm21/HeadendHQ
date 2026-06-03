@@ -17,29 +17,90 @@ namespace HeadendHQ.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
 
-            modelBuilder.Entity("HeadendHQ.Core.Options.HdHomerunDeviceOptions", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Settings.ScheduleScraperSettings", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("DeviceAuth")
+                    b.Property<string>("EnabledStreamingServices")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<int>("ScrapeWindowDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CleanupRetentionDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CronSchedule")
+                        .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("RunOnStartup")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScheduleScraperSettings");
+                });
+
+            modelBuilder.Entity("HeadendHQ.DummyVideo.DummyVideoSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LibraryPaths")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CronSchedule")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RunOnStartup")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DummyVideoSettings");
+                });
+
+            modelBuilder.Entity("HeadendHQ.HdHomerun.HdHomerunSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CronSchedule")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RunOnStartup")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HdHomerunSettings");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.HdHomerun.XmltvCache", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("XmltvContent")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("XmltvUrl")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
-                    b.ToTable("HdHomerunDevices");
+                    b.ToTable("XmltvCache");
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -101,57 +162,35 @@ namespace HeadendHQ.Data.Migrations
                 {
                     b.OwnsOne("HeadendHQ.Core.Titles.TitleMetadata", "Metadata", b1 =>
                         {
-                            b1.Property<Guid>("TitleId")
-                                .HasColumnType("TEXT");
+                            b1.Property<Guid>("TitleId");
 
-                            b1.Property<string>("AwayTeam")
-                                .HasColumnType("TEXT");
+                            b1.Property<string>("ContentRating");
 
-                            b1.Property<string>("ContentRating")
-                                .HasColumnType("TEXT");
+                            b1.PrimitiveCollection<string>("Genres")
+                                .IsRequired();
 
-                            b1.Property<int?>("Episode")
-                                .HasColumnType("INTEGER");
+                            b1.Property<string>("Plot");
 
-                            b1.Property<string>("Genre")
-                                .HasColumnType("TEXT");
+                            b1.Property<float?>("Rating");
 
-                            b1.Property<string>("HomeTeam")
-                                .HasColumnType("TEXT");
+                            b1.PrimitiveCollection<string>("Sets")
+                                .IsRequired();
 
-                            b1.Property<string>("League")
-                                .HasColumnType("TEXT");
+                            b1.Property<string>("Studio");
 
-                            b1.Property<string>("Plot")
-                                .HasColumnType("TEXT");
+                            b1.Property<string>("Tagline");
 
-                            b1.Property<float?>("Rating")
-                                .HasColumnType("REAL");
+                            b1.Property<string>("UniqueId");
 
-                            b1.Property<int?>("Season")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<string>("ShowTitle")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Studio")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Tagline")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("UniqueId")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Venue")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int?>("Year")
-                                .HasColumnType("INTEGER");
+                            b1.Property<int?>("Year");
 
                             b1.HasKey("TitleId");
 
                             b1.ToTable("Titles");
+
+                            b1
+                                .ToJson("Metadata")
+                                .HasColumnType("TEXT");
 
                             b1.WithOwner()
                                 .HasForeignKey("TitleId");

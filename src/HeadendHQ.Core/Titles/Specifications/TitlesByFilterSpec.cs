@@ -1,3 +1,5 @@
+using HeadendHQ.Core.Shared;
+
 namespace HeadendHQ.Core.Titles.Specifications;
 
 public class TitlesByFilterSpec(DateTime? from, DateTime? to, TitleType? type) : ISpecification<Title>

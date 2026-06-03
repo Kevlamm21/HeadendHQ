@@ -1,3 +1,4 @@
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles.Specifications;
 using Mediator;
 
@@ -5,7 +6,7 @@ namespace HeadendHQ.Core.Titles.CommandHandlers;
 
 public record CleanupExpiredTitlesCommand(int RetentionDays) : ICommand<Unit>;
 
-public class CleanupExpiredTitlesHandler(IWorkspace workspace, IUnitOfWork uow)
+public class CleanupExpiredTitlesHandler(IWorkspace workspace)
     : ICommandHandler<CleanupExpiredTitlesCommand, Unit>
 {
     public async ValueTask<Unit> Handle(CleanupExpiredTitlesCommand command, CancellationToken ct)
@@ -15,9 +16,6 @@ public class CleanupExpiredTitlesHandler(IWorkspace workspace, IUnitOfWork uow)
 
         foreach (var title in expired)
             workspace.Remove(title);
-
-        if (expired.Count > 0)
-            await uow.SaveChanges(ct);
 
         return Unit.Value;
     }

@@ -1,6 +1,10 @@
-using HeadendHQ.Core;
+using Cronos;
+using HeadendHQ.HdHomerun;
+using HeadendHQ.HdHomerun.CommandHandlers;
+using HeadendHQ.HdHomerun.Settings;
+using Mediator;
 
-namespace HeadendHQ.Web.HdHomerun;
+namespace HeadendHQ.Web.CronJobs;
 
 public class HdHomerunXmltvJob(
     IServiceScopeFactory scopeFactory,
@@ -8,13 +12,15 @@ public class HdHomerunXmltvJob(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Populate on startup so data is immediately available
-        await RunJobAsync(stoppingToken);
+        var settings = await GetSettingsAsync(stoppingToken);
+        if (settings.RunOnStartup)
+            await RunJobAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var delay = GetDelayUntilNextRun();
-            logger.LogInformation("Next HDHomeRun XMLTV refresh scheduled in {Hours}h {Minutes}m",
+            settings = await GetSettingsAsync(stoppingToken);
+            var delay = GetDelay(settings.CronSchedule);
+            logger.LogInformation("Next HDHomeRun XMLTV refresh in {Hours}h {Minutes}m.",
                 (int)delay.TotalHours, delay.Minutes);
 
             await Task.Delay(delay, stoppingToken);
@@ -22,29 +28,31 @@ public class HdHomerunXmltvJob(
         }
     }
 
-    private async Task RunJobAsync(CancellationToken stoppingToken)
+    private async Task RunJobAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<IHdHomerunService>();
-
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         try
         {
-            await service.RefreshXmltvAsync(stoppingToken);
+            await mediator.Send(new RefreshXmltvCommand(), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Failed to refresh HDHomeRun XMLTV content");
+            logger.LogError(ex, "Failed to refresh HDHomeRun XMLTV content.");
         }
     }
 
-    private static TimeSpan GetDelayUntilNextRun()
+    private async Task<HdHomerunSettings> GetSettingsAsync(CancellationToken ct)
     {
-        var now = DateTime.Now;
-        var nextRun = DateTime.Today.AddHours(2).AddMinutes(30);
+        using var scope = scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        return await mediator.Send(new GetHdHomerunSettingsQuery(), ct);
+    }
 
-        if (nextRun <= now)
-            nextRun = nextRun.AddDays(1);
-
-        return nextRun - now;
+    private static TimeSpan GetDelay(string cronSchedule)
+    {
+        var expression = CronExpression.Parse(cronSchedule);
+        var next = expression.GetNextOccurrence(DateTimeOffset.Now, TimeZoneInfo.Local);
+        return next.HasValue ? next.Value - DateTimeOffset.Now : TimeSpan.FromHours(24);
     }
 }
