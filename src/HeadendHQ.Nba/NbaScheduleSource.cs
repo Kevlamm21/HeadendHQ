@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HeadendHQ.Core;
+using HeadendHQ.Core.Browser;
 using HeadendHQ.Core.Options;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
@@ -7,12 +8,12 @@ using HeadendHQ.Nba.Models;
 using Mediator;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Playwright;
 
 namespace HeadendHQ.Nba;
 
 public class NbaScheduleSource(
     IMediator mediator,
+    IBrowserContextFactory browserFactory,
     IOptions<ScheduleScraperOptions> options,
     ILogger<NbaScheduleSource> logger) : IScheduleSource
 {
@@ -68,8 +69,9 @@ public class NbaScheduleSource(
                 var service = BroadcasterMap[broadcaster.BroadcasterDisplay];
                 var title = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName} vs {game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
 
-                var resolvedUrl = await ResolveEventUrlAsync(service, broadcaster.VideoLink, game.GameId, ct);
-                var eventUrl = resolvedUrl ?? broadcaster.VideoLink;
+                var eventUrl = service == StreamingService.NbaLeaguePass
+                    ? $"https://www.nba.com/game/{game.GameId}"
+                    : broadcaster.VideoLink;
 
                 var request = new TitleRequest
                 {
@@ -92,44 +94,27 @@ public class NbaScheduleSource(
         return upserted;
     }
 
-    private static async Task<string> FetchScheduleJsonAsync(CancellationToken ct)
+    private async Task<string> FetchScheduleJsonAsync(CancellationToken ct)
     {
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new()
-        {
-            Headless = true,
-            Args = ["--disable-blink-features=AutomationControlled"]
-        });
-
-        await using var context = await browser.NewContextAsync(new()
+        await using var context = await browserFactory.CreateAsync(new()
         {
             UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
-        });
+        }, ct);
 
-        var response = await context.APIRequest.GetAsync(ScheduleUrl, new()
+        return await context.ApiGetAsync(ScheduleUrl, new Dictionary<string, string>
         {
-            Headers = new Dictionary<string, string>
-            {
-                { "accept",              "*/*" },
-                { "accept-language",     "en-US,en;q=0.9" },
-                { "dnt",                 "1" },
-                { "origin",              "https://www.nba.com" },
-                { "referer",             "https://www.nba.com/" },
-                { "sec-ch-ua",           "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"" },
-                { "sec-ch-ua-mobile",    "?0" },
-                { "sec-ch-ua-platform",  "\"Windows\"" },
-                { "sec-fetch-dest",      "empty" },
-                { "sec-fetch-mode",      "cors" },
-                { "sec-fetch-site",      "same-site" },
-            }
-        });
-
-        ct.ThrowIfCancellationRequested();
-
-        if (!response.Ok)
-            throw new InvalidOperationException($"NBA CDN returned HTTP {response.Status}.");
-
-        return await response.TextAsync();
+            { "accept",             "*/*" },
+            { "accept-language",    "en-US,en;q=0.9" },
+            { "dnt",                "1" },
+            { "origin",             "https://www.nba.com" },
+            { "referer",            "https://www.nba.com/" },
+            { "sec-ch-ua",          "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"" },
+            { "sec-ch-ua-mobile",   "?0" },
+            { "sec-ch-ua-platform", "\"Windows\"" },
+            { "sec-fetch-dest",     "empty" },
+            { "sec-fetch-mode",     "cors" },
+            { "sec-fetch-site",     "same-site" },
+        }, ct);
     }
 
     private static NbaBroadcaster? FindEnabledBroadcaster(
@@ -146,49 +131,5 @@ public class NbaScheduleSource(
         }
 
         return null;
-    }
-
-    private async Task<string?> ResolveEventUrlAsync(
-        StreamingService service,
-        string? videoLink,
-        string gameId,
-        CancellationToken ct)
-    {
-        if (service == StreamingService.NbaLeaguePass)
-            return $"https://www.nba.com/game/{gameId}";
-
-        if (string.IsNullOrEmpty(videoLink))
-        {
-            logger.LogWarning("Game {GameId} on {Service} has no video link.", gameId, service);
-            return null;
-        }
-
-        if (service == StreamingService.Espn)
-        {
-            try
-            {
-                return await EspnLinkResolver.ResolveAsync(videoLink, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve ESPN smart link for game {GameId}.", gameId);
-                return null;
-            }
-        }
-
-        if (service == StreamingService.Peacock)
-        {
-            try
-            {
-                return await PeacockLinkResolver.ResolveAsync(videoLink, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve Peacock URL for game {GameId}.", gameId);
-                return null;
-            }
-        }
-
-        return videoLink;
     }
 }

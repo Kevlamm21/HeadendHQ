@@ -1,5 +1,5 @@
 using HeadendHQ.Core.Titles.CommandHandlers;
-using HeadendHQ.Nba;
+using HeadendHQ.Espn;
 using Mediator;
 
 namespace HeadendHQ.Web.Titles;
@@ -18,10 +18,10 @@ public static class ScheduleScraperEndpoints
         .WithSummary("Trigger schedule scrape")
         .WithDescription("Manually triggers a full schedule scrape across all sources, ADB mapping, and cleanup.");
 
-        app.MapGet("/debug/espn-resolve/{calendarEventId}", async (int calendarEventId, CancellationToken ct) =>
+        app.MapGet("/debug/espn-resolve/{calendarEventId}", async (int calendarEventId, EspnLinkResolver resolver, CancellationToken ct) =>
         {
             var fakeSmartLink = $"https://espn.smart.link/debug?gameId={calendarEventId}";
-            var resolved = await EspnLinkResolver.ResolveAsync(fakeSmartLink, ct);
+            var resolved = await resolver.ResolveAsync(fakeSmartLink, ct);
             return resolved is not null
                 ? Results.Ok(new { calendarEventId, resolvedUrl = resolved })
                 : Results.NotFound(new { calendarEventId, error = "Stream ID not found. evntId may be missing from the ESPN page, or strms array is empty." });

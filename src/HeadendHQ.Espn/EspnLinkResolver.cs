@@ -1,16 +1,16 @@
 using System.Text.RegularExpressions;
-using Microsoft.Playwright;
+using HeadendHQ.Core;
 
-namespace HeadendHQ.Nba;
+namespace HeadendHQ.Espn;
 
-public static class EspnLinkResolver
+public class EspnLinkResolver(IBrowserContextFactory browserFactory)
 {
     private static readonly Regex GameIdPattern = new(@"[?&]gameId=(\d+)", RegexOptions.Compiled);
     private static readonly Regex StreamIdPattern = new(
         @"""strms"":\[(?:\{[^}]*\},)*?\{[^}]*""id"":""([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public static async Task<string?> ResolveAsync(string smartLink, CancellationToken ct)
+    public async Task<string?> ResolveAsync(string smartLink, CancellationToken ct)
     {
         var gameIdMatch = GameIdPattern.Match(smartLink);
         if (!gameIdMatch.Success)
@@ -18,29 +18,18 @@ public static class EspnLinkResolver
 
         var gameId = gameIdMatch.Groups[1].Value;
 
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new()
-        {
-            Headless = true,
-            Args = ["--disable-blink-features=AutomationControlled"]
-        });
-
-        await using var context = await browser.NewContextAsync(new()
+        await using var context = await browserFactory.CreateAsync(new()
         {
             UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        });
+        }, ct);
 
-        var page = await context.NewPageAsync();
-
-        await page.GotoAsync(
-            $"https://www.espn.com/watch/player/_/eventCalendarId/{gameId}",
-            new() { WaitUntil = WaitUntilState.Load });
-
-        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await using var page = await context.NewPageAsync();
+        await page.GotoAsync($"https://www.espn.com/watch/player/_/eventCalendarId/{gameId}", BrowserWaitUntil.Load);
+        await page.WaitForNetworkIdleAsync();
 
         ct.ThrowIfCancellationRequested();
 
-        var html = await page.ContentAsync();
+        var html = await page.GetContentAsync();
 
         var evntIdIndex = html.IndexOf($"\"evntId\":{gameId}", StringComparison.Ordinal);
         if (evntIdIndex == -1)

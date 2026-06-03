@@ -2,7 +2,7 @@
 using HeadendHQ.Core;
 using HeadendHQ.Core.Titles;
 
-namespace HeadendHQ.AdbMapping.Extractors;
+namespace HeadendHQ.AmazonPrime;
 
 public class AmazonPrimeExtractor : IAdbExtractor
 {

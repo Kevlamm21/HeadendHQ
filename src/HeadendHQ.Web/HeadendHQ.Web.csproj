@@ -23,12 +23,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HeadendHQ.AdbMapping\HeadendHQ.AdbMapping.csproj" />
+    <ProjectReference Include="..\HeadendHQ.AmazonPrime\HeadendHQ.AmazonPrime.csproj" />
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
     <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
     <ProjectReference Include="..\HeadendHQ.DummyVideo\HeadendHQ.DummyVideo.csproj" />
+    <ProjectReference Include="..\HeadendHQ.Espn\HeadendHQ.Espn.csproj" />
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
     <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
+    <ProjectReference Include="..\HeadendHQ.Peacock\HeadendHQ.Peacock.csproj" />
+    <ProjectReference Include="..\HeadendHQ.Playwright\HeadendHQ.Playwright.csproj" />
   </ItemGroup>
 
 </Project>

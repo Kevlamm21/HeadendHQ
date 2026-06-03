@@ -1,12 +1,14 @@
-using HeadendHQ.AdbMapping;
-using HeadendHQ.AdbMapping.Extractors;
+using HeadendHQ.AmazonPrime;
 using HeadendHQ.Core;
 using HeadendHQ.Core.Options;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Data;
 using HeadendHQ.DummyVideo;
+using HeadendHQ.Espn;
 using HeadendHQ.HdHomerun;
 using HeadendHQ.Nba;
+using HeadendHQ.Peacock;
+using HeadendHQ.Playwright;
 using HeadendHQ.Web.HdHomerun;
 using HeadendHQ.Web.Titles;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +35,9 @@ builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
 });
 builder.Services.AddHostedService<HdHomerunXmltvJob>();
 
+// Browser
+builder.Services.AddPlaywright();
+
 // Schedule scraper
 builder.Services.Configure<ScheduleScraperOptions>(
     builder.Configuration.GetSection(ScheduleScraperOptions.SectionName));
@@ -47,7 +52,11 @@ builder.Services.AddScoped<IReadModel, EfReadModel>();
 builder.Services.AddScoped<IWorkspace, EfWorkspace>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
-// ADB mapping
+// Link resolvers
+builder.Services.AddTransient<EspnLinkResolver>();
+builder.Services.AddTransient<PeacockLinkResolver>();
+
+// ADB extractors
 builder.Services.AddSingleton<IAdbExtractor, NbaExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, EspnExtractor>();
 builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
