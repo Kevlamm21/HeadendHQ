@@ -1,3 +1,5 @@
+using HeadendHQ.Core.Shared;
+
 namespace HeadendHQ.Core.Titles.Specifications;
 
 public class TitleByProviderNameStartSpec(string provider, string name, DateTime? startUtc) : ISpecification<Title>

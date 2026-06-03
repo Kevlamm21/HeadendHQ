@@ -1,3 +1,4 @@
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles.Specifications;
 using Mediator;
 
@@ -5,7 +6,7 @@ namespace HeadendHQ.Core.Titles.CommandHandlers;
 
 public record CreateTitleCommand(TitleRequest Request) : ICommand<Title>;
 
-public class CreateTitleHandler(IWorkspace workspace, IUnitOfWork uow)
+public class CreateTitleHandler(IWorkspace workspace)
     : ICommandHandler<CreateTitleCommand, Title>
 {
     public async ValueTask<Title> Handle(CreateTitleCommand command, CancellationToken ct)
@@ -17,13 +18,11 @@ public class CreateTitleHandler(IWorkspace workspace, IUnitOfWork uow)
         if (existing is not null)
         {
             existing.Update(request);
-            await uow.SaveChanges(ct);
             return existing;
         }
 
         var title = new Title(request);
         workspace.Add(title);
-        await uow.SaveChanges(ct);
         return title;
     }
 

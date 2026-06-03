@@ -1,4 +1,5 @@
 using HeadendHQ.Core;
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles.Specifications;
 using Microsoft.Extensions.Logging;
 
@@ -6,7 +7,6 @@ namespace HeadendHQ.DummyVideo;
 
 public class VideoCleanupService(
     IWorkspace workspace,
-    IUnitOfWork uow,
     ILogger<VideoCleanupService> logger) : ICleanupService
 {
     public async Task CleanupExpiredAsync(CancellationToken ct = default)
@@ -40,7 +40,6 @@ public class VideoCleanupService(
             }
         }
 
-        await uow.SaveChanges(ct);
         logger.LogInformation("Video cleanup complete. Deleted: {Deleted}, Failed: {Failed}.", deleted, failed);
     }
 }

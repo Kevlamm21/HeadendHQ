@@ -1,7 +1,6 @@
-﻿using HeadendHQ.Core.Options;
+using HeadendHQ.Core.Settings;
 using Mediator;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace HeadendHQ.Core.Titles.CommandHandlers;
 
@@ -10,9 +9,8 @@ public record ScrapeSchedulesCommand : ICommand<ScrapeSchedulesResult>;
 public record ScrapeSchedulesResult(int TotalUpserted, List<string> SourceErrors);
 
 public class ScrapeSchedulesHandler(
-    IEnumerable<IScheduleSource> sources,
+    IEnumerable<IScheduleScraper> sources,
     IMediator mediator,
-    IOptions<ScheduleScraperOptions> options,
     ILogger<ScrapeSchedulesHandler> logger)
     : ICommandHandler<ScrapeSchedulesCommand, ScrapeSchedulesResult>
 {
@@ -45,7 +43,8 @@ public class ScrapeSchedulesHandler(
 
         try
         {
-            await mediator.Send(new CleanupExpiredTitlesCommand(options.Value.CleanupRetentionDays), ct);
+            var scraperSettings = await mediator.Send(new GetScheduleScraperSettingsQuery(), ct);
+            await mediator.Send(new CleanupExpiredTitlesCommand(scraperSettings.CleanupRetentionDays), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

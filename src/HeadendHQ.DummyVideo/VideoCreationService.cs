@@ -1,17 +1,18 @@
 using System.Diagnostics;
 using System.Text;
 using HeadendHQ.Core;
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.Specifications;
+using HeadendHQ.DummyVideo.Settings;
+using Mediator;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace HeadendHQ.DummyVideo;
 
 public class VideoCreationService(
-    IOptions<DummyVideoOptions> options,
+    IMediator mediator,
     IWorkspace workspace,
-    IUnitOfWork uow,
     ILogger<VideoCreationService> logger) : ICreationService
 {
     private static readonly string TemplatePath =
@@ -19,6 +20,8 @@ public class VideoCreationService(
 
     public async Task CreateDailyAsync(CancellationToken ct = default)
     {
+        var opts = await mediator.Send(new GetDummyVideoSettingsQuery(), ct);
+
         var todayLocalStart = DateTime.Now.Date;
         var todayUtcStart = TimeZoneInfo.ConvertTimeToUtc(todayLocalStart, TimeZoneInfo.Local);
         var todayUtcEnd = TimeZoneInfo.ConvertTimeToUtc(todayLocalStart.AddDays(1), TimeZoneInfo.Local);
@@ -42,9 +45,16 @@ public class VideoCreationService(
 
         foreach (var title in pending)
         {
+            if (!opts.LibraryPaths.TryGetValue(title.Type, out var libraryPath))
+            {
+                logger.LogWarning("No library path configured for title type {Type}. Skipping {Name}.", title.Type, title.Name);
+                failed++;
+                continue;
+            }
+
             try
             {
-                title.DummyVideoPath = await CreateVideoAsync(title, ct);
+                title.DummyVideoPath = await CreateVideoAsync(title, libraryPath, ct);
                 created++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -54,13 +64,12 @@ public class VideoCreationService(
             }
         }
 
-        await uow.SaveChanges(ct);
         logger.LogInformation("Video creation complete. Created: {Created}, Failed: {Failed}.", created, failed);
     }
 
-    private async Task<string> CreateVideoAsync(Title title, CancellationToken ct)
+    private async Task<string> CreateVideoAsync(Title title, string libraryPath, CancellationToken ct)
     {
-        var eventFolder = Path.Combine(options.Value.LibraryPath, title.Name);
+        var eventFolder = Path.Combine(libraryPath, title.Name);
         Directory.CreateDirectory(eventFolder);
 
         var videoPath = Path.Combine(eventFolder, $"{title.Name}.mp4");
@@ -79,8 +88,7 @@ public class VideoCreationService(
         }
 
         var durationSeconds = (int)Math.Ceiling(duration.TotalSeconds);
-        var arguments = $"-i \"{TemplatePath}\" -t {durationSeconds} -c copy \"{videoPath}\"";
-        await ExecuteFfmpegAsync(arguments, ct);
+        await ExecuteFfmpegAsync($"-i \"{TemplatePath}\" -t {durationSeconds} -c copy \"{videoPath}\"", ct);
 
         if (!File.Exists(videoPath))
             throw new FileNotFoundException($"FFmpeg completed but video not found at: {videoPath}");
@@ -94,7 +102,7 @@ public class VideoCreationService(
 
         process.StartInfo = new ProcessStartInfo
         {
-            FileName = options.Value.FfmpegPath,
+            FileName = "ffmpeg",
             Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -103,11 +111,10 @@ public class VideoCreationService(
         };
 
         var errorBuilder = new StringBuilder();
-
         process.ErrorDataReceived += (_, e) =>
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
-                errorBuilder.AppendLine(e.Data);
+            errorBuilder.AppendLine(e.Data);
         };
 
         process.Start();

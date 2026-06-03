@@ -18,6 +18,8 @@ internal record NbaGameDate(
 internal record NbaGame(
     [property: JsonPropertyName("gameId")] string GameId,
     [property: JsonPropertyName("gameDateTimeUTC")] string GameDateTimeUtc,
+    [property: JsonPropertyName("gameLabel")] string? GameLabel,
+    [property: JsonPropertyName("seriesText")] string? SeriesText,
     [property: JsonPropertyName("homeTeam")] NbaTeam HomeTeam,
     [property: JsonPropertyName("awayTeam")] NbaTeam AwayTeam,
     [property: JsonPropertyName("broadcasters")] NbaBroadcasters Broadcasters

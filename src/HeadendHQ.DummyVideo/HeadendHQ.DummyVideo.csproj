@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
-    <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
   </ItemGroup>
 
 </Project>

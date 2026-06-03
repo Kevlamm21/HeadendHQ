@@ -77,7 +77,7 @@ Each third-party schedule source gets its own project, mirroring the `HeadendHQ.
 
 ```
 HeadendHQ.Core         — SportingEvent entity, Sport enum, StreamingService enum,
-                         IScheduleSource interface, IAdbExtractor interface
+                         IScheduleScraperService interface, IAdbExtractor interface
 HeadendHQ.Data         — AppDbContext: add SportingEvents DbSet
 HeadendHQ.Nba          — NbaScheduleSource, NBA JSON models, Playwright Peacock resolver
 HeadendHQ.AdbMapping   — IAdbExtractor implementations (ESPN, NBA, Prime, Peacock),
@@ -109,9 +109,9 @@ public class SportingEvent
 When `EventUrl` changes, `AdbCommand` must be reset to `null` so the mapping service
 re-derives it on the next run.
 
-### IScheduleSource Interface
+### IScheduleScraperService Interface
 ```csharp
-public interface IScheduleSource
+public interface IScheduleScraperService
 {
     Sport Sport { get; }
     Task<IReadOnlyList<SportingEvent>> FetchEventsAsync(CancellationToken ct);

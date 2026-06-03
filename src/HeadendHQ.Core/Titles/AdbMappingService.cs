@@ -1,3 +1,4 @@
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles.Specifications;
 using Microsoft.Extensions.Logging;
 
@@ -6,7 +7,6 @@ namespace HeadendHQ.Core.Titles;
 public class AdbMappingService(
     IEnumerable<IAdbExtractor> extractors,
     IWorkspace workspace,
-    IUnitOfWork uow,
     ILogger<AdbMappingService> logger)
 {
     private readonly Dictionary<StreamingService, IAdbExtractor> _extractorMap =
@@ -38,7 +38,7 @@ public class AdbMappingService(
 
             try
             {
-                title.AdbCommand = extractor.BuildCommand(title.EventUrl!);
+                title.AdbCommand = await extractor.BuildCommandAsync(title.EventUrl, ct);
                 mapped++;
             }
             catch (Exception ex)
@@ -49,8 +49,6 @@ public class AdbMappingService(
                 skipped++;
             }
         }
-
-        await uow.SaveChanges(ct);
 
         logger.LogInformation(
             "ADB mapping complete. Mapped: {Mapped}, Skipped: {Skipped}.",
