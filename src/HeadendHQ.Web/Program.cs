@@ -9,6 +9,8 @@ using HeadendHQ.HdHomerun;
 using HeadendHQ.Mediator;
 using HeadendHQ.Nba;
 using HeadendHQ.Peacock;
+using HeadendHQ.SixLabors;
+using HeadendHQ.Web.Assets;
 using HeadendHQ.Web.CronJobs;
 using HeadendHQ.Web.HdHomerun;
 using HeadendHQ.Web.Settings;
@@ -59,6 +61,10 @@ builder.Services.AddScoped<ICreationService, VideoCreationService>();
 builder.Services.AddScoped<ICleanupService, VideoCleanupService>();
 builder.Services.AddHostedService<DummyVideoJob>();
 
+// Artwork
+builder.Services.AddScoped<IImageCreationService, ImageCreationService>();
+builder.Services.AddSingleton<ILogoNormalizer, LogoNormalizer>();
+
 var app = builder.Build();
 
 await app.InitializeDatabase();
@@ -80,6 +86,8 @@ app.MapTitleEndpoints();
 app.MapScheduleScraperEndpoints();
 app.MapAdbMappingEndpoints();
 app.MapDummyVideoEndpoints();
+app.MapArtworkEndpoints();
+app.MapAssetEndpoints();
 app.MapSettingsEndpoints();
 
 app.Run();

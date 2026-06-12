@@ -11,4 +11,10 @@ public record TitleMetadata
     public float? Rating { get; set; }
     public string? ContentRating { get; set; }
     public string? UniqueId { get; set; }
+
+    public int? HomeTeamAssetId { get; set; }
+    public int? AwayTeamAssetId { get; set; }
+    public int? LeagueAssetId { get; set; }
+    public int? StreamingServiceAssetId { get; set; }
+    public int? WordMarkId { get; set; }
 }

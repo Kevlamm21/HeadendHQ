@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..\HeadendHQ</DockerfileContext>
+    <!-- Scriban vulnerabilities are in Scalar.AspNetCore's transitive dep; low risk (dev UI only) -->
+    <!-- ImageSharp 3.1.10 moderate vuln; pinned to 3.x to avoid commercial license requirement in 4.x -->
+    <NuGetAuditSuppress>GHSA-24c8-4792-22hx;GHSA-5rpf-x9jg-8j5p;GHSA-5wr9-m6jw-xx44;GHSA-c875-h985-hvrc;GHSA-grr9-747v-xvcp;GHSA-m2p3-hwv5-xpqw;GHSA-p6q4-fgr8-vx4p;GHSA-v66j-x4hw-fv9g;GHSA-wgh7-7m3c-fx25;GHSA-x6m9-38vm-2xhf;GHSA-xcx6-vp38-8hr5;GHSA-xw6w-9jjh-p9cr;GHSA-rxmq-m78w-7wmc</NuGetAuditSuppress>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,7 +23,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Cronos" Version="0.9.0" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.13.18" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +36,7 @@
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
     <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
     <ProjectReference Include="..\HeadendHQ.Mediator\HeadendHQ.Mediator.csproj" />
+    <ProjectReference Include="..\HeadendHQ.SixLabors\HeadendHQ.SixLabors.csproj" />
   </ItemGroup>
 
 </Project>

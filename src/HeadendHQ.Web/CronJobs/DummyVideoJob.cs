@@ -2,6 +2,7 @@ using Cronos;
 using HeadendHQ.DummyVideo;
 using HeadendHQ.DummyVideo.EventHandlers;
 using HeadendHQ.DummyVideo.Settings;
+using HeadendHQ.SixLabors.EventHandlers;
 using Mediator;
 
 namespace HeadendHQ.Web.CronJobs;
@@ -49,6 +50,15 @@ public class DummyVideoJob(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Video creation failed.");
+        }
+
+        try
+        {
+            await mediator.Send(new CreateArtworkCommand(), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Artwork creation failed.");
         }
     }
 

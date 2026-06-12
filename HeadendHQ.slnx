@@ -11,5 +11,6 @@
   <Project Path="src/HeadendHQ.Mediator/HeadendHQ.Mediator.csproj" />
   <Project Path="src/HeadendHQ.Nba/HeadendHQ.Nba.csproj" />
   <Project Path="src/HeadendHQ.Peacock/HeadendHQ.Peacock.csproj" />
+  <Project Path="src/HeadendHQ.SixLabors/HeadendHQ.SixLabors.csproj" />
   <Project Path="src/HeadendHQ.Web/HeadendHQ.Web.csproj" />
 </Solution>

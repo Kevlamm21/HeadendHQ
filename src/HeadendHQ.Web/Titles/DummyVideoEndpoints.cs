@@ -1,4 +1,5 @@
 using HeadendHQ.DummyVideo.EventHandlers;
+using HeadendHQ.SixLabors.EventHandlers;
 using Mediator;
 
 namespace HeadendHQ.Web.Titles;
@@ -10,6 +11,7 @@ public static class DummyVideoEndpoints
         app.MapPost("/videos/create", async (IMediator mediator, CancellationToken ct) =>
         {
             await mediator.Send(new CreateDummyVideosCommand(), ct);
+            await mediator.Send(new CreateArtworkCommand(), ct);
             return Results.Ok(new { message = "Video creation complete." });
         })
         .WithTags("Dummy Videos")

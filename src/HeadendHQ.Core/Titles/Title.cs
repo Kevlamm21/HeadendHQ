@@ -27,6 +27,7 @@ public class Title : IEntity<Guid>
     public string? EventUrl { get; set; }
     public string? AdbCommand { get; set; }
     public string? DummyVideoPath { get; set; }
+    public string? PosterPath { get; set; }
     public string Provider { get; set; } = string.Empty;
     public TitleMetadata? Metadata { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -53,6 +54,12 @@ public class Title : IEntity<Guid>
             EventUrl = newUrl;
             AdbCommand = null;
         }
+
+        if (request.DummyVideoPath is not null)
+            DummyVideoPath = string.IsNullOrEmpty(request.DummyVideoPath) ? null : request.DummyVideoPath;
+
+        if (request.PosterPath is not null)
+            PosterPath = string.IsNullOrEmpty(request.PosterPath) ? null : request.PosterPath;
     }
 }
 
@@ -67,4 +74,6 @@ public record TitleRequest
     public TitleMetadata? Metadata { get; init; }
     public DateTime? StartUtc { get; init; }
     public DateTime? EndUtc { get; init; }
+    public string? DummyVideoPath { get; init; }
+    public string? PosterPath { get; init; }
 }
