@@ -129,32 +129,22 @@ namespace HeadendHQ.Data.Migrations
                     b.ToTable("XmltvCache", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.Settings.ScheduleScraperSettings", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Settings.GlobalSettings", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("CleanupRetentionDays")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.PrimitiveCollection<string>("EnabledStreamingServices")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("RunOnStartup")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ScrapeWindowDays")
+                    b.Property<int>("TitleRetentionDays")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ScheduleScraperSettings", (string)null);
+                    b.ToTable("GlobalSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -166,10 +156,10 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<string>("AdbCommand")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<bool>("ArtworkCreated")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("DummyVideoPath")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("EndUtc")
@@ -191,9 +181,6 @@ namespace HeadendHQ.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PosterPath")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -210,31 +197,12 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("VodLauncherPath")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.ToTable("Titles", (string)null);
-                });
-
-            modelBuilder.Entity("HeadendHQ.DummyVideo.DummyVideoSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LibraryPaths")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("RunOnStartup")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DummyVideoSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.HdHomerun.HdHomerunSettings", b =>
@@ -243,20 +211,42 @@ namespace HeadendHQ.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("DeviceUrl")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("RunOnStartup")
+                    b.HasKey("Id");
+
+                    b.ToTable("HdHomerunSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.ScheduleScraping.ScheduleScrapingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ScrapeWindowDays")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.ToTable("HdHomerunSettings", (string)null);
+                    b.ToTable("ScheduleScrapingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.VodLauncher.VodLauncherSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LibraryPaths")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VodLauncherSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -265,20 +255,16 @@ namespace HeadendHQ.Data.Migrations
                         {
                             b1.Property<Guid>("TitleId");
 
-                            b1.Property<string>("AwayColor");
-
-                            b1.Property<byte[]>("AwayLogo");
+                            b1.Property<int?>("AwayTeamAssetId");
 
                             b1.Property<string>("ContentRating");
 
                             b1.PrimitiveCollection<string>("Genres")
                                 .IsRequired();
 
-                            b1.Property<string>("HomeColor");
+                            b1.Property<int?>("HomeTeamAssetId");
 
-                            b1.Property<byte[]>("HomeLogo");
-
-                            b1.Property<byte[]>("LeagueLogo");
+                            b1.Property<int?>("LeagueAssetId");
 
                             b1.Property<string>("Plot");
 
@@ -287,7 +273,7 @@ namespace HeadendHQ.Data.Migrations
                             b1.PrimitiveCollection<string>("Sets")
                                 .IsRequired();
 
-                            b1.Property<byte[]>("StreamingLogo");
+                            b1.Property<int?>("StreamingServiceAssetId");
 
                             b1.Property<string>("Studio");
 
@@ -295,7 +281,7 @@ namespace HeadendHQ.Data.Migrations
 
                             b1.Property<string>("UniqueId");
 
-                            b1.Property<byte[]>("WordMarkLogo");
+                            b1.Property<int?>("WordMarkId");
 
                             b1.Property<int?>("Year");
 

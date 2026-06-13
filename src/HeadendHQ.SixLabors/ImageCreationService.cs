@@ -13,48 +13,36 @@ namespace HeadendHQ.SixLabors;
 
 public class ImageCreationService(IReadModel readModel) : IImageCreationService
 {
-    public async Task<string> CreatePosterAsync(Title title, CancellationToken ct = default)
+    public async Task CreatePosterAsync(Title title, CancellationToken ct = default)
     {
-        var folder = GetTitleFolder(title);
-        var outputPath = System.IO.Path.Combine(folder, $"{title.Name}.jpg");
-        await RenderAsync(outputPath, title, isVertical: true, ct);
-        return outputPath;
+        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}.jpg"), title, isVertical: true, ct);
     }
 
-    public async Task<string> CreateThumbnailAsync(Title title, CancellationToken ct = default)
+    public async Task CreateThumbnailAsync(Title title, CancellationToken ct = default)
     {
-        var folder = GetTitleFolder(title);
-        var outputPath = System.IO.Path.Combine(folder, $"{title.Name}-fanart-1.jpg");
-        await RenderAsync(outputPath, title, isVertical: false, ct);
-        return outputPath;
+        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-fanart-1.jpg"), title, isVertical: false, ct);
     }
 
-    private static string GetTitleFolder(Title title)
+    public async Task CreateBackgroundAsync(Title title, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(title.DummyVideoPath))
-            throw new InvalidOperationException($"Title '{title.Name}' has no DummyVideoPath; cannot determine output folder.");
-
-        return System.IO.Path.GetDirectoryName(title.DummyVideoPath)
-            ?? throw new InvalidOperationException($"Could not determine directory from path '{title.DummyVideoPath}'.");
+        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-background.jpg"), title, isVertical: false, ct);
     }
 
-    public Task<string> CreateBackgroundAsync(Title title, CancellationToken ct = default) =>
-        throw new NotImplementedException("Background image creation is not yet implemented.");
-
-    public async Task<string?> CreateClearLogoAsync(Title title, CancellationToken ct = default)
+    public async Task CreateClearLogoAsync(Title title, CancellationToken ct = default)
     {
         if (title.Metadata?.WordMarkId is not int wordMarkId)
-            return null;
+            return;
 
         var wordMark = await readModel.SingleOrDefault(new EntityByIdSpecification<WordMark, int>(wordMarkId), ct);
         if (wordMark?.LogoData is not { Length: > 0 } logoData)
-            return null;
+            return;
 
-        var folder = GetTitleFolder(title);
-        var outputPath = System.IO.Path.Combine(folder, $"{title.Name}-clearlogo.png");
-        await System.IO.File.WriteAllBytesAsync(outputPath, logoData, ct);
-        return outputPath;
+        await File.WriteAllBytesAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-clearlogo.png"), logoData, ct);
     }
+
+    private static string GetFolder(Title title) =>
+        title.VodLauncherPath ?? throw new InvalidOperationException(
+            $"Title '{title.Name}' ({title.Id}) has no VodLauncherPath — cannot write artwork.");
 
     private async Task RenderAsync(string outputPath, Title title, bool isVertical, CancellationToken ct)
     {

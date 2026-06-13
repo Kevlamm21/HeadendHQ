@@ -1,4 +1,6 @@
+using HeadendHQ.Core.Assets.Specifications;
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Titles;
 using Mediator;
 
 namespace HeadendHQ.Core.Assets.CommandHandlers;
@@ -15,14 +17,15 @@ public class GetStreamingServiceAssetsHandler(IReadModel readModel)
     }
 }
 
-public record UploadStreamingLogoCommand(int Id, byte[] LogoData) : ICommand<StreamingServiceAsset>;
+public record UploadStreamingLogoCommand(StreamingService Service, byte[] LogoData) : ICommand<StreamingServiceAsset>;
 
-public class UploadStreamingLogoHandler(IWorkspace workspace, ILogoNormalizer normalizer)
+public class UploadStreamingLogoHandler(IWorkspace workspace, IImageNormalizer normalizer)
     : ICommandHandler<UploadStreamingLogoCommand, StreamingServiceAsset>
 {
     public async ValueTask<StreamingServiceAsset> Handle(UploadStreamingLogoCommand command, CancellationToken ct)
     {
-        var asset = await workspace.LoadById<StreamingServiceAsset, int>(command.Id, ct);
+        var asset = await workspace.LoadSingleOrDefault(new StreamingServiceAssetByServiceSpec(command.Service), ct)
+            ?? throw new NotFoundException($"Streaming service asset '{command.Service}' not found.");
         asset.LogoData = await normalizer.NormalizeStreamingLogoAsync(command.LogoData, ct);
         return asset;
     }

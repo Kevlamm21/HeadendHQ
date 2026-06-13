@@ -3,8 +3,9 @@ using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Data.Shared;
-using HeadendHQ.DummyVideo;
+using HeadendHQ.VodLauncher;
 using HeadendHQ.HdHomerun;
+using HeadendHQ.ScheduleScraping;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,11 +39,14 @@ public static class DbExtensions
         {
             await db.Database.MigrateAsync();
 
-            if (!await db.Set<ScheduleScraperSettings>().AnyAsync())
-                db.Add(new ScheduleScraperSettings());
+            if (!await db.Set<GlobalSettings>().AnyAsync())
+                db.Add(new GlobalSettings());
 
-            if (!await db.Set<DummyVideoSettings>().AnyAsync())
-                db.Add(new DummyVideoSettings());
+            if (!await db.Set<ScheduleScrapingSettings>().AnyAsync())
+                db.Add(new ScheduleScrapingSettings());
+
+            if (!await db.Set<VodLauncherSettings>().AnyAsync())
+                db.Add(new VodLauncherSettings());
 
             if (!await db.Set<HdHomerunSettings>().AnyAsync())
                 db.Add(new HdHomerunSettings());

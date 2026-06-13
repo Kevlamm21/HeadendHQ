@@ -37,12 +37,12 @@ public static class AssetEndpoints
         .WithSummary("Create league asset")
         .WithDescription("Creates a new league asset variant (e.g. 'NBA Finals'). Default variants are auto-seeded on startup.");
 
-        app.MapPut("/assets/leagues/{id:int}/logo", async (int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("/assets/leagues/{league}/{variant}/logo", async (League league, string variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
             try
             {
                 var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadLeagueLogoCommand(id, logoData), ct);
+                var asset = await mediator.Send(new UploadLeagueLogoCommand(league, variant, logoData), ct);
                 return Results.Ok(asset);
             }
             catch (NotFoundException ex)
@@ -94,7 +94,7 @@ public static class AssetEndpoints
         .WithTags("Team Assets")
         .WithName("CreateTeamAsset")
         .WithSummary("Create team asset")
-        .WithDescription("Creates a team asset with metadata. Upload the logo separately via PUT /{id}/logo.");
+        .WithDescription("Creates a team asset with metadata. Upload the logo separately via PUT /assets/teams/{league}/{teamName}/logo.");
 
         app.MapPut("/assets/teams/{id:int}", async (int id, UpdateTeamAssetCommand command, IMediator mediator, CancellationToken ct) =>
         {
@@ -113,12 +113,12 @@ public static class AssetEndpoints
         .WithSummary("Update team asset")
         .WithDescription("Updates team metadata (name, league, colors). Does not affect the stored logo.");
 
-        app.MapPut("/assets/teams/{id:int}/logo", async (int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("/assets/teams/{league}/{teamName}/logo", async (League league, string teamName, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
             try
             {
                 var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadTeamLogoCommand(id, logoData), ct);
+                var asset = await mediator.Send(new UploadTeamLogoCommand(teamName, league, logoData), ct);
                 return Results.Ok(asset);
             }
             catch (NotFoundException ex)
@@ -162,12 +162,12 @@ public static class AssetEndpoints
         .WithSummary("List streaming service assets")
         .WithDescription("Returns all streaming service assets. One record per service is seeded on startup.");
 
-        app.MapPut("/assets/streaming/{id:int}/logo", async (int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("/assets/streaming/{service}/logo", async (StreamingService service, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
             try
             {
                 var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadStreamingLogoCommand(id, logoData), ct);
+                var asset = await mediator.Send(new UploadStreamingLogoCommand(service, logoData), ct);
                 return Results.Ok(asset);
             }
             catch (NotFoundException ex)
@@ -204,12 +204,12 @@ public static class AssetEndpoints
         .WithSummary("Create word mark")
         .WithDescription("Creates a new word mark variant for a league.");
 
-        app.MapPut("/assets/wordmarks/{id:int}/logo", async (int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("/assets/wordmarks/{league}/{variant}/logo", async (League league, string variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
             try
             {
                 var logoData = await ReadBytesAsync(logo);
-                var wordMark = await mediator.Send(new UploadWordMarkLogoCommand(id, logoData), ct);
+                var wordMark = await mediator.Send(new UploadWordMarkLogoCommand(league, variant, logoData), ct);
                 return Results.Ok(wordMark);
             }
             catch (NotFoundException ex)

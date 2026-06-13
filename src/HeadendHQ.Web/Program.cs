@@ -1,14 +1,16 @@
 using HeadendHQ.AmazonPrime;
+using HeadendHQ.Hangfire;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Data;
-using HeadendHQ.DummyVideo;
+using HeadendHQ.FFmpeg;
+using HeadendHQ.VodLauncher;
 using HeadendHQ.Espn;
 using HeadendHQ.HdHomerun;
 using HeadendHQ.Mediator;
 using HeadendHQ.Nba;
 using HeadendHQ.Peacock;
+using HeadendHQ.ScheduleScraping;
 using HeadendHQ.SixLabors;
 using HeadendHQ.Web.Assets;
 using HeadendHQ.Web.CronJobs;
@@ -30,7 +32,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 // Database
-var dbPath = builder.Configuration["Database:Path"];
+var dbPath = builder.Configuration["Database:Path"] ?? "/data/headendhq.db";
+var connectionString = $"Data Source={dbPath};";
 builder.ConfigureDatabase(dbPath);
 
 // HDHomeRun
@@ -38,12 +41,12 @@ builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; HeadendHQ/1.0)");
 });
-builder.Services.AddHostedService<HdHomerunXmltvJob>();
-
 // Schedule scraper
 builder.Services.AddScoped<NbaScheduleScraper>();
 builder.Services.AddTransient<IScheduleScraper>(sp => sp.GetRequiredService<NbaScheduleScraper>());
-builder.Services.AddHostedService<ScheduleScraperJob>();
+
+// Broadcaster mapping
+builder.Services.AddScoped<StreamingServiceMapper>();
 
 // ADB mapping
 builder.Services.AddSingleton<NbaLinkResolver>();
@@ -56,14 +59,20 @@ builder.Services.AddSingleton<AmazonPrimeLinkResolver>();
 builder.Services.AddSingleton<IAdbExtractor, AmazonPrimeExtractor>();
 builder.Services.AddScoped<AdbMappingService>();
 
-// Dummy video
-builder.Services.AddScoped<ICreationService, VideoCreationService>();
-builder.Services.AddScoped<ICleanupService, VideoCleanupService>();
-builder.Services.AddHostedService<DummyVideoJob>();
+// VOD Launcher
+builder.Services.AddScoped<IVideoCreator, FfmpegVideoCreator>();
+builder.Services.AddScoped<ICreationService, VodCreationService>();
+builder.Services.AddScoped<ICleanupService, VodCleanupService>();
 
 // Artwork
 builder.Services.AddScoped<IImageCreationService, ImageCreationService>();
-builder.Services.AddSingleton<ILogoNormalizer, LogoNormalizer>();
+builder.Services.AddSingleton<IImageNormalizer, ImageNormalizer>();
+
+// Nightly job
+builder.Services.AddHostedService<NightlyCronJob>();
+
+// Hangfire
+builder.ConfigureHangfire(connectionString);
 
 var app = builder.Build();
 
@@ -71,6 +80,7 @@ await app.InitializeDatabase();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
+app.UseHangfireDashboard();
 
 app.MapGet("/", () => Results.Redirect("/scalar/v1"))
     .ExcludeFromDescription();
@@ -84,9 +94,6 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
 app.MapHdHomerunEndpoints();
 app.MapTitleEndpoints();
 app.MapScheduleScraperEndpoints();
-app.MapAdbMappingEndpoints();
-app.MapDummyVideoEndpoints();
-app.MapArtworkEndpoints();
 app.MapAssetEndpoints();
 app.MapSettingsEndpoints();
 

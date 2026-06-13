@@ -10,6 +10,7 @@
 	</ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Mediator.Abstractions" Version="3.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <PrivateAssets>all</PrivateAssets>
@@ -19,8 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
-    <ProjectReference Include="..\HeadendHQ.DummyVideo\HeadendHQ.DummyVideo.csproj" />
+    <ProjectReference Include="..\HeadendHQ.VodLauncher\HeadendHQ.VodLauncher.csproj" />
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
+    <ProjectReference Include="..\HeadendHQ.ScheduleScraping\HeadendHQ.ScheduleScraping.csproj" />
   </ItemGroup>
 
 </Project>

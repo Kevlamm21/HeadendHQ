@@ -2,7 +2,7 @@
 
 namespace HeadendHQ.Core.Titles;
 
-public class Title : IEntity<Guid>
+public class Title : Entity<Guid>
 {
     private Title() { }
 
@@ -17,17 +17,18 @@ public class Title : IEntity<Guid>
         Metadata = request.Metadata;
         StartUtc = request.StartUtc;
         EndUtc = request.EndUtc ?? request.StartUtc?.AddHours(3);
+        RecordEvent(new TitleCreated(Id));
     }
 
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public override Guid Id { get; init; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public TitleType Type { get; set; }
     public StreamingService StreamingService { get; set; }
     public string? ExternalId { get; set; }
     public string? EventUrl { get; set; }
     public string? AdbCommand { get; set; }
-    public string? DummyVideoPath { get; set; }
-    public string? PosterPath { get; set; }
+    public string? VodLauncherPath { get; set; }
+    public bool ArtworkCreated { get; set; }
     public string Provider { get; set; } = string.Empty;
     public TitleMetadata? Metadata { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -55,13 +56,15 @@ public class Title : IEntity<Guid>
             AdbCommand = null;
         }
 
-        if (request.DummyVideoPath is not null)
-            DummyVideoPath = string.IsNullOrEmpty(request.DummyVideoPath) ? null : request.DummyVideoPath;
+        if (request.VodLauncherPath is not null)
+            VodLauncherPath = string.IsNullOrEmpty(request.VodLauncherPath) ? null : request.VodLauncherPath;
 
-        if (request.PosterPath is not null)
-            PosterPath = string.IsNullOrEmpty(request.PosterPath) ? null : request.PosterPath;
+        if (request.ArtworkCreated is true)
+            ArtworkCreated = true;
     }
 }
+
+public record TitleCreated(Guid TitleId) : IEvent;
 
 public record TitleRequest
 {
@@ -74,6 +77,6 @@ public record TitleRequest
     public TitleMetadata? Metadata { get; init; }
     public DateTime? StartUtc { get; init; }
     public DateTime? EndUtc { get; init; }
-    public string? DummyVideoPath { get; init; }
-    public string? PosterPath { get; init; }
+    public string? VodLauncherPath { get; init; }
+    public bool? ArtworkCreated { get; init; }
 }

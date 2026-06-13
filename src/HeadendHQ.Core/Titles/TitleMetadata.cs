@@ -8,7 +8,7 @@ public record TitleMetadata
     public string? Studio { get; set; }
     public List<string> Genres { get; set; } = [];
     public List<string> Sets { get; set; } = [];
-    public float? Rating { get; set; }
+    public string? Rating { get; set; }
     public string? ContentRating { get; set; }
     public string? UniqueId { get; set; }
 

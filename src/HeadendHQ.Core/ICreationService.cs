@@ -2,5 +2,5 @@ namespace HeadendHQ.Core;
 
 public interface ICreationService
 {
-    Task CreateDailyAsync(CancellationToken ct = default);
+    Task CreateForTitleAsync(Guid titleId, CancellationToken ct = default);
 }

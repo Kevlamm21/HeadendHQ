@@ -36,14 +36,15 @@ public class CreateLeagueAssetHandler(IWorkspace workspace)
     }
 }
 
-public record UploadLeagueLogoCommand(int Id, byte[] LogoData) : ICommand<LeagueAsset>;
+public record UploadLeagueLogoCommand(League League, string Variant, byte[] LogoData) : ICommand<LeagueAsset>;
 
-public class UploadLeagueLogoHandler(IWorkspace workspace, ILogoNormalizer normalizer)
+public class UploadLeagueLogoHandler(IWorkspace workspace, IImageNormalizer normalizer)
     : ICommandHandler<UploadLeagueLogoCommand, LeagueAsset>
 {
     public async ValueTask<LeagueAsset> Handle(UploadLeagueLogoCommand command, CancellationToken ct)
     {
-        var asset = await workspace.LoadById<LeagueAsset, int>(command.Id, ct);
+        var asset = await workspace.LoadSingleOrDefault(new LeagueAssetByLeagueVariantSpec(command.League, command.Variant), ct)
+            ?? throw new NotFoundException($"League asset '{command.League}' ({command.Variant}) not found.");
         asset.LogoData = await normalizer.NormalizeLeagueLogoAsync(command.LogoData, ct);
         return asset;
     }

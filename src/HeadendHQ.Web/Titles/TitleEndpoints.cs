@@ -1,5 +1,6 @@
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
+using HeadendHQ.VodLauncher.EventHandlers;
 using Mediator;
 
 namespace HeadendHQ.Web.Titles;
@@ -65,7 +66,7 @@ public static class TitleEndpoints
         .WithTags("Titles")
         .WithName("CreateTitle")
         .WithSummary("Create title")
-        .WithDescription("Creates a new title.");
+        .WithDescription("Creates a new title and enqueues ADB mapping and VOD file creation in the background.");
 
         app.MapPut("/titles/{id:guid}", async (Guid id, TitleRequest request, IMediator mediator, CancellationToken ct) =>
         {
@@ -100,5 +101,30 @@ public static class TitleEndpoints
         .WithName("DeleteTitle")
         .WithSummary("Delete title")
         .WithDescription("Deletes a title by ID.");
+
+        app.MapGroup("/titles/{id}/images")
+            .WithTags("Titles")
+            .MapPost("", async (
+                Guid id,
+                IFormFile? poster,
+                IFormFile? background,
+                IFormFile? thumbnail,
+                IFormFile? wordmark,
+                IMediator mediator,
+                CancellationToken ct) =>
+            {
+                await mediator.Send(new UploadTitleImagesCommand(
+                    id,
+                    poster?.OpenReadStream(),
+                    background?.OpenReadStream(),
+                    thumbnail?.OpenReadStream(),
+                    wordmark?.OpenReadStream()), ct);
+
+                return Results.NoContent();
+            })
+            .DisableAntiforgery()
+            .WithName("UploadTitleImages")
+            .WithSummary("Upload title artwork")
+            .WithDescription("Uploads poster, background, thumbnail, and/or wordmark images for a title. Files are normalized and saved to the title's VOD folder.");
     }
 }

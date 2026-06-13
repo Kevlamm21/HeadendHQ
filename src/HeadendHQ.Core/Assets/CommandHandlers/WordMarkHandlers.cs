@@ -36,14 +36,15 @@ public class CreateWordMarkHandler(IWorkspace workspace)
     }
 }
 
-public record UploadWordMarkLogoCommand(int Id, byte[] LogoData) : ICommand<WordMark>;
+public record UploadWordMarkLogoCommand(League League, string Variant, byte[] LogoData) : ICommand<WordMark>;
 
-public class UploadWordMarkLogoHandler(IWorkspace workspace, ILogoNormalizer normalizer)
+public class UploadWordMarkLogoHandler(IWorkspace workspace, IImageNormalizer normalizer)
     : ICommandHandler<UploadWordMarkLogoCommand, WordMark>
 {
     public async ValueTask<WordMark> Handle(UploadWordMarkLogoCommand command, CancellationToken ct)
     {
-        var wordMark = await workspace.LoadById<WordMark, int>(command.Id, ct);
+        var wordMark = await workspace.LoadSingleOrDefault(new WordMarkByLeagueVariantSpec(command.League, command.Variant), ct)
+            ?? throw new NotFoundException($"Word mark '{command.League}' ({command.Variant}) not found.");
         wordMark.LogoData = await normalizer.NormalizeWordMarkAsync(command.LogoData, ct);
         return wordMark;
     }
