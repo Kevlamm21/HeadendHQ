@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using HeadendHQ.Core.Shared;
-using HeadendHQ.Core.Titles;
+﻿using HeadendHQ.Core.Titles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

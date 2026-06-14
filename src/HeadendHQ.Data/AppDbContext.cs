@@ -8,8 +8,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         modelBuilder.ApplyConfiguration(new XmltvCacheConfiguration());
         modelBuilder.ApplyConfiguration(new TitleConfiguration());
-        modelBuilder.ApplyConfiguration(new ScheduleScraperSettingsConfiguration());
-        modelBuilder.ApplyConfiguration(new DummyVideoSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new GlobalSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new ScheduleScrapingSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new VodLauncherSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new HdHomerunSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new LeagueAssetConfiguration());
+        modelBuilder.ApplyConfiguration(new TeamAssetConfiguration());
+        modelBuilder.ApplyConfiguration(new StreamingServiceAssetConfiguration());
+        modelBuilder.ApplyConfiguration(new WordMarkConfiguration());
     }
 }

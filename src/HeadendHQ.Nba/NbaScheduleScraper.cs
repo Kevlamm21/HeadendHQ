@@ -1,6 +1,8 @@
 using System.Text.Json;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Settings;
+using HeadendHQ.Core.Assets;
+using HeadendHQ.Core.Assets.Specifications;
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
 using HeadendHQ.Nba.Models;
@@ -12,19 +14,30 @@ namespace HeadendHQ.Nba;
 
 public class NbaScheduleScraper(
     IMediator mediator,
+    IReadModel readModel,
+    StreamingServiceMapper streamingServiceMapper,
     ILogger<NbaScheduleScraper> logger) : IScheduleScraper
 {
     private const string ScheduleUrl = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json";
 
-    public async Task<int> FetchEventsAsync(CancellationToken ct)
+    public async Task<int> FetchEventsAsync(int scrapeWindowDays, CancellationToken ct)
     {
-        var scraperSettings = await mediator.Send(new GetScheduleScraperSettingsQuery(), ct);
         var now = DateTime.UtcNow;
-        var windowEnd = ScheduleScraperExtensions.GetWindowEnd(scraperSettings);
+        var windowEnd = now.AddDays(scrapeWindowDays);
 
         var json = await FetchScheduleJsonAsync(ct);
         var schedule = JsonSerializer.Deserialize<NbaScheduleRoot>(json)
             ?? throw new InvalidOperationException("NBA schedule response deserialized to null.");
+
+        var leagueAsset = await readModel.SingleOrDefault(new LeagueAssetByLeagueVariantSpec(League.Nba, "Default"), ct);
+        var wordMark = await readModel.SingleOrDefault(new WordMarkByLeagueVariantSpec(League.Nba, "Original"), ct);
+
+        var teamAssets = (await readModel.All<TeamAsset>(ct))
+            .Where(a => a.League == League.Nba)
+            .ToDictionary(a => a.TeamName);
+
+        var streamingAssets = (await readModel.All<StreamingServiceAsset>(ct))
+            .ToDictionary(a => a.Service);
 
         var upserted = 0;
 
@@ -40,36 +53,47 @@ public class NbaScheduleScraper(
                 if (startUtc < now || startUtc > windowEnd)
                     continue;
 
-                var broadcaster = ScheduleScraperExtensions.FindEnabledBroadcaster(
-                    (game.Broadcasters?.NationalBroadcasters ?? [])
-                        .Select(b => new Broadcaster { DisplayName = b.BroadcasterDisplay, VideoLink = b.VideoLink }),
-                    scraperSettings);
+                StreamingService? resolvedService = null;
+                string? resolvedLink = null;
 
-                if (broadcaster is null)
+                foreach (var broadcaster in game.Broadcasters?.NationalBroadcasters ?? [])
+                {
+                    var service = await streamingServiceMapper.MapAsync(broadcaster.BroadcasterDisplay, ct);
+                    if (service is null) continue;
+
+                    if (!string.IsNullOrEmpty(broadcaster.VideoLink))
+                    {
+                        resolvedService = service;
+                        resolvedLink = broadcaster.VideoLink;
+                        break;
+                    }
+
+                    resolvedService ??= service;
+                }
+
+                if (resolvedService is null)
                     continue;
 
                 var homeTeam = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName}";
                 var awayTeam = $"{game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
 
+                var metadata = BuildMetadata(
+                    homeTeam, awayTeam, resolvedService.Value,
+                    startUtc.Year, BuildTagline(game), $"{awayTeam} at {homeTeam}.",
+                    leagueAsset?.Id, wordMark?.Id,
+                    teamAssets, streamingAssets);
+
                 var request = new TitleRequest
                 {
                     Name = $"{homeTeam} vs {awayTeam}",
                     Type = TitleType.SportingEvent,
-                    StreamingService = broadcaster.streamingService,
+                    StreamingService = resolvedService.Value,
                     ExternalId = game.GameId,
-                    EventUrl = broadcaster.VideoLink,
+                    EventUrl = resolvedLink,
                     Provider = "NBA.com",
                     StartUtc = startUtc,
                     EndUtc = startUtc.AddHours(3),
-                    Metadata = new TitleMetadata
-                    {
-                        Studio = "NBA",
-                        Genres = ["Sports", "Basketball", "NBA"],
-                        Sets = ["NBA"],
-                        Year = startUtc.Year,
-                        Tagline = BuildTagline(game),
-                        Plot = $"{awayTeam} at {homeTeam}.",
-                    }
+                    Metadata = metadata,
                 };
 
                 await mediator.Send(new CreateTitleCommand(request), ct);
@@ -79,6 +103,33 @@ public class NbaScheduleScraper(
 
         logger.LogInformation("NBA scrape complete. {Count} events upserted.", upserted);
         return upserted;
+    }
+
+    private static TitleMetadata BuildMetadata(
+        string homeTeam, string awayTeam, StreamingService streamingService,
+        int year, string tagline, string plot,
+        int? leagueAssetId, int? wordMarkId,
+        Dictionary<string, TeamAsset> teamAssets,
+        Dictionary<StreamingService, StreamingServiceAsset> streamingAssets)
+    {
+        teamAssets.TryGetValue(homeTeam, out var homeAsset);
+        teamAssets.TryGetValue(awayTeam, out var awayAsset);
+        streamingAssets.TryGetValue(streamingService, out var streamingAsset);
+
+        return new TitleMetadata
+        {
+            Studio = "NBA",
+            Genres = ["Sports", "Basketball", "NBA"],
+            Sets = ["NBA"],
+            Year = year,
+            Tagline = tagline,
+            Plot = plot,
+            HomeTeamAssetId = homeAsset?.Id,
+            AwayTeamAssetId = awayAsset?.Id,
+            LeagueAssetId = leagueAssetId,
+            StreamingServiceAssetId = streamingAsset?.Id,
+            WordMarkId = wordMarkId,
+        };
     }
 
     private static async Task<string> FetchScheduleJsonAsync(CancellationToken ct)

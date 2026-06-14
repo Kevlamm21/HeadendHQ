@@ -18,7 +18,7 @@ public class GetLaunchCommandHandler(IReadModel readModel)
         var title = results.FirstOrDefault();
 
         if (title is null)
-            throw new InvalidOperationException($"No title found for name '{command.Name}'.");
+            throw new NotFoundException<Title>(command.Name);
 
         if (title.AdbCommand is null)
             throw new InvalidOperationException($"No ADB command has been mapped for '{command.Name}' yet.");

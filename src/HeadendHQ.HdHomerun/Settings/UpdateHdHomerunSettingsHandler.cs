@@ -3,10 +3,7 @@ using Mediator;
 
 namespace HeadendHQ.HdHomerun.Settings;
 
-public record UpdateHdHomerunSettingsCommand(
-    string DeviceUrl,
-    string CronSchedule,
-    bool RunOnStartup) : ICommand<HdHomerunSettings>;
+public record UpdateHdHomerunSettingsCommand(string? DeviceUrl) : ICommand<HdHomerunSettings>;
 
 public class UpdateHdHomerunSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateHdHomerunSettingsCommand, HdHomerunSettings>
@@ -16,7 +13,7 @@ public class UpdateHdHomerunSettingsHandler(IWorkspace workspace)
         var settings = await workspace.LoadSingleOrDefault(new HdHomerunSettingsSpec(), ct)
             ?? throw new InvalidOperationException("HdHomerunSettings not found.");
 
-        settings.Configure(command.DeviceUrl, command.CronSchedule, command.RunOnStartup);
+        settings.Configure(command.DeviceUrl);
 
         return settings;
     }

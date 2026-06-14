@@ -1,5 +1,4 @@
 ﻿using Mediator;
-
 namespace HeadendHQ.Core.Shared;
 
 public interface IEntity<TId>
@@ -24,7 +23,6 @@ public abstract class Entity<TId> : IEntity<TId>, IEventSource
 		return events;
 	}
 }
-
 public interface IEvent : INotification;
 
 public interface IEventSource

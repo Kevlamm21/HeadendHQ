@@ -17,76 +17,102 @@ namespace HeadendHQ.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
 
-            modelBuilder.Entity("HeadendHQ.Core.Settings.ScheduleScraperSettings", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Assets.LeagueAsset", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("EnabledStreamingServices")
+                    b.Property<int>("League")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("LogoData")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("Variant")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("ScrapeWindowDays")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("CleanupRetentionDays")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("RunOnStartup")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ScheduleScraperSettings");
+                    b.HasIndex("League", "Variant")
+                        .IsUnique();
+
+                    b.ToTable("LeagueAssets", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.DummyVideo.DummyVideoSettings", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Assets.StreamingServiceAsset", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("LibraryPaths")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.Property<byte[]>("LogoData")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("RunOnStartup")
+                    b.Property<int>("Service")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.ToTable("DummyVideoSettings");
+                    b.HasIndex("Service")
+                        .IsUnique();
+
+                    b.ToTable("StreamingServiceAssets", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.HdHomerun.HdHomerunSettings", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Assets.TeamAsset", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("DeviceUrl")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CronSchedule")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("RunOnStartup")
+                    b.Property<int>("League")
                         .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("LogoData")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("PrimaryColorHex")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecondaryColorHex")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TeamName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("HdHomerunSettings");
+                    b.HasIndex("TeamName", "League")
+                        .IsUnique();
+
+                    b.ToTable("TeamAssets", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Assets.WordMark", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("League")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("LogoData")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("Variant")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("League", "Variant")
+                        .IsUnique();
+
+                    b.ToTable("WordMarks", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.HdHomerun.XmltvCache", b =>
@@ -100,7 +126,25 @@ namespace HeadendHQ.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("XmltvCache");
+                    b.ToTable("XmltvCache", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Settings.GlobalSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.PrimitiveCollection<string>("EnabledStreamingServices")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TitleRetentionDays")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GlobalSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -112,10 +156,10 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<string>("AdbCommand")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<bool>("ArtworkCreated")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("DummyVideoPath")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("EndUtc")
@@ -153,9 +197,56 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("VodLauncherPath")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Titles");
+                    b.ToTable("Titles", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.HdHomerun.HdHomerunSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HdHomerunSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.ScheduleScraping.ScheduleScrapingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ScrapeWindowDays")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScheduleScrapingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.VodLauncher.VodLauncherSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LibraryPaths")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VodLauncherSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -164,23 +255,33 @@ namespace HeadendHQ.Data.Migrations
                         {
                             b1.Property<Guid>("TitleId");
 
+                            b1.Property<int?>("AwayTeamAssetId");
+
                             b1.Property<string>("ContentRating");
 
                             b1.PrimitiveCollection<string>("Genres")
                                 .IsRequired();
 
+                            b1.Property<int?>("HomeTeamAssetId");
+
+                            b1.Property<int?>("LeagueAssetId");
+
                             b1.Property<string>("Plot");
 
-                            b1.Property<float?>("Rating");
+                            b1.Property<string>("Rating");
 
                             b1.PrimitiveCollection<string>("Sets")
                                 .IsRequired();
+
+                            b1.Property<int?>("StreamingServiceAssetId");
 
                             b1.Property<string>("Studio");
 
                             b1.Property<string>("Tagline");
 
                             b1.Property<string>("UniqueId");
+
+                            b1.Property<int?>("WordMarkId");
 
                             b1.Property<int?>("Year");
 
