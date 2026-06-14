@@ -20,7 +20,7 @@ public class GetScheduleScrapingSettingsHandler(IReadModel readModel)
     }
 }
 
-public record UpdateScheduleScrapingSettingsCommand(int ScrapeWindowDays) : ICommand<ScheduleScrapingSettings>;
+public record UpdateScheduleScrapingSettingsCommand(int? ScrapeWindowDays) : ICommand<ScheduleScrapingSettings>;
 
 public class UpdateScheduleScrapingSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateScheduleScrapingSettingsCommand, ScheduleScrapingSettings>

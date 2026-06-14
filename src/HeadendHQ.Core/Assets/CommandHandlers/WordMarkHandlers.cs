@@ -44,7 +44,7 @@ public class UploadWordMarkLogoHandler(IWorkspace workspace, IImageNormalizer no
     public async ValueTask<WordMark> Handle(UploadWordMarkLogoCommand command, CancellationToken ct)
     {
         var wordMark = await workspace.LoadSingleOrDefault(new WordMarkByLeagueVariantSpec(command.League, command.Variant), ct)
-            ?? throw new NotFoundException($"Word mark '{command.League}' ({command.Variant}) not found.");
+            ?? throw new NotFoundException<WordMark>($"{command.League}/{command.Variant}");
         wordMark.LogoData = await normalizer.NormalizeWordMarkAsync(command.LogoData, ct);
         return wordMark;
     }

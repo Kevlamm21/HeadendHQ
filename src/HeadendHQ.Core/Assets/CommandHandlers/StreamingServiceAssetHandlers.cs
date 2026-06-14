@@ -25,7 +25,7 @@ public class UploadStreamingLogoHandler(IWorkspace workspace, IImageNormalizer n
     public async ValueTask<StreamingServiceAsset> Handle(UploadStreamingLogoCommand command, CancellationToken ct)
     {
         var asset = await workspace.LoadSingleOrDefault(new StreamingServiceAssetByServiceSpec(command.Service), ct)
-            ?? throw new NotFoundException($"Streaming service asset '{command.Service}' not found.");
+            ?? throw new NotFoundException<StreamingServiceAsset>(command.Service.ToString());
         asset.LogoData = await normalizer.NormalizeStreamingLogoAsync(command.LogoData, ct);
         return asset;
     }

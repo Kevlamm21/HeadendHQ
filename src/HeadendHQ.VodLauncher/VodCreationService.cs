@@ -12,6 +12,7 @@ public class VodCreationService(
     IWorkspace workspace,
     IVideoCreator videoCreator,
     IImageCreationService imageCreation,
+    INfoWriter nfoWriter,
     ILogger<VodCreationService> logger) : ICreationService
 {
     private static readonly string TemplatePath =
@@ -60,6 +61,15 @@ public class VodCreationService(
             {
                 logger.LogError(ex, "Failed to create artwork for title {Id} ({Name}).", title.Id, title.Name);
             }
+        }
+
+        try
+        {
+            await nfoWriter.WriteAsync(title, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to write NFO for title {Id} ({Name}).", title.Id, title.Name);
         }
     }
 

@@ -23,7 +23,7 @@ public class GetGlobalSettingsHandler(IReadModel readModel)
 
 public record UpdateGlobalSettingsCommand(
     List<StreamingService>? EnabledStreamingServices,
-    int TitleRetentionDays) : ICommand<GlobalSettings>;
+    int? TitleRetentionDays) : ICommand<GlobalSettings>;
 
 public class UpdateGlobalSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateGlobalSettingsCommand, GlobalSettings>

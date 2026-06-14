@@ -17,7 +17,16 @@ public class CreateTitleHandler(IWorkspace workspace)
 
         if (existing is not null)
         {
-            existing.Update(request);
+            existing.Update(new UpdateTitleRequest
+            {
+                Name = request.Name,
+                Type = request.Type,
+                StreamingService = request.StreamingService,
+                EventUrl = request.EventUrl,
+                StartUtc = request.StartUtc,
+                EndUtc = request.EndUtc ?? request.StartUtc?.AddHours(3),
+                Metadata = request.Metadata,
+            });
             return existing;
         }
 

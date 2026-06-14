@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HeadendHQ.Core;
+using HeadendHQ.Core.Assets;
 using HeadendHQ.Core.Assets.Specifications;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
@@ -31,6 +32,13 @@ public class NbaScheduleScraper(
         var leagueAsset = await readModel.SingleOrDefault(new LeagueAssetByLeagueVariantSpec(League.Nba, "Default"), ct);
         var wordMark = await readModel.SingleOrDefault(new WordMarkByLeagueVariantSpec(League.Nba, "Original"), ct);
 
+        var teamAssets = (await readModel.All<TeamAsset>(ct))
+            .Where(a => a.League == League.Nba)
+            .ToDictionary(a => a.TeamName);
+
+        var streamingAssets = (await readModel.All<StreamingServiceAsset>(ct))
+            .ToDictionary(a => a.Service);
+
         var upserted = 0;
 
         foreach (var gameDate in schedule.LeagueSchedule.GameDates)
@@ -45,28 +53,43 @@ public class NbaScheduleScraper(
                 if (startUtc < now || startUtc > windowEnd)
                     continue;
 
-                var broadcasters = (game.Broadcasters?.NationalBroadcasters ?? [])
-                    .Select(b => new Broadcaster { DisplayName = b.BroadcasterDisplay, VideoLink = b.VideoLink });
+                StreamingService? resolvedService = null;
+                string? resolvedLink = null;
 
-                var resolved = await streamingServiceMapper.FindEnabledAsync(broadcasters, ct);
-                if (resolved is null)
+                foreach (var broadcaster in game.Broadcasters?.NationalBroadcasters ?? [])
+                {
+                    var service = await streamingServiceMapper.MapAsync(broadcaster.BroadcasterDisplay, ct);
+                    if (service is null) continue;
+
+                    if (!string.IsNullOrEmpty(broadcaster.VideoLink))
+                    {
+                        resolvedService = service;
+                        resolvedLink = broadcaster.VideoLink;
+                        break;
+                    }
+
+                    resolvedService ??= service;
+                }
+
+                if (resolvedService is null)
                     continue;
 
                 var homeTeam = $"{game.HomeTeam.TeamCity} {game.HomeTeam.TeamName}";
                 var awayTeam = $"{game.AwayTeam.TeamCity} {game.AwayTeam.TeamName}";
 
-                var metadata = await BuildMetadataAsync(
-                    homeTeam, awayTeam, resolved.streamingService,
+                var metadata = BuildMetadata(
+                    homeTeam, awayTeam, resolvedService.Value,
                     startUtc.Year, BuildTagline(game), $"{awayTeam} at {homeTeam}.",
-                    leagueAsset?.Id, wordMark?.Id, ct);
+                    leagueAsset?.Id, wordMark?.Id,
+                    teamAssets, streamingAssets);
 
                 var request = new TitleRequest
                 {
                     Name = $"{homeTeam} vs {awayTeam}",
                     Type = TitleType.SportingEvent,
-                    StreamingService = resolved.streamingService,
+                    StreamingService = resolvedService.Value,
                     ExternalId = game.GameId,
-                    EventUrl = resolved.VideoLink,
+                    EventUrl = resolvedLink,
                     Provider = "NBA.com",
                     StartUtc = startUtc,
                     EndUtc = startUtc.AddHours(3),
@@ -82,15 +105,16 @@ public class NbaScheduleScraper(
         return upserted;
     }
 
-    private async Task<TitleMetadata> BuildMetadataAsync(
+    private static TitleMetadata BuildMetadata(
         string homeTeam, string awayTeam, StreamingService streamingService,
         int year, string tagline, string plot,
         int? leagueAssetId, int? wordMarkId,
-        CancellationToken ct)
+        Dictionary<string, TeamAsset> teamAssets,
+        Dictionary<StreamingService, StreamingServiceAsset> streamingAssets)
     {
-        var homeAsset = await readModel.SingleOrDefault(new TeamAssetByNameLeagueSpec(homeTeam, League.Nba), ct);
-        var awayAsset = await readModel.SingleOrDefault(new TeamAssetByNameLeagueSpec(awayTeam, League.Nba), ct);
-        var streamingAsset = await readModel.SingleOrDefault(new StreamingServiceAssetByServiceSpec(streamingService), ct);
+        teamAssets.TryGetValue(homeTeam, out var homeAsset);
+        teamAssets.TryGetValue(awayTeam, out var awayAsset);
+        streamingAssets.TryGetValue(streamingService, out var streamingAsset);
 
         return new TitleMetadata
         {

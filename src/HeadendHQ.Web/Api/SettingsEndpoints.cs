@@ -9,7 +9,7 @@ using HeadendHQ.HdHomerun.Settings;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
-namespace HeadendHQ.Web.Settings;
+namespace HeadendHQ.Web.Api;
 
 public static class SettingsEndpoints
 {
@@ -23,14 +23,14 @@ public static class SettingsEndpoints
             .WithSummary("Get global settings")
             .WithDescription("Returns global settings including enabled streaming services and title retention period.");
 
-        group.MapPut("/global", async (
+        group.MapPatch("/global", async (
             [FromBody] UpdateGlobalSettingsCommand command,
             IMediator mediator,
             CancellationToken ct) =>
             Results.Ok(await mediator.Send(command, ct)))
             .WithName("UpdateGlobalSettings")
             .WithSummary("Update global settings")
-            .WithDescription("Updates enabled streaming services and title retention period. Applies to scraping, ADB mapping, and VOD creation.");
+            .WithDescription("Partially updates global settings. Only non-null fields are applied.");
 
         group.MapGet("/schedule-scraping", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetScheduleScrapingSettingsQuery(), ct)))
@@ -38,14 +38,14 @@ public static class SettingsEndpoints
             .WithSummary("Get schedule scraping settings")
             .WithDescription("Returns schedule scraping settings including how many days ahead to scrape.");
 
-        group.MapPut("/schedule-scraping", async (
+        group.MapPatch("/schedule-scraping", async (
             [FromBody] UpdateScheduleScrapingSettingsCommand command,
             IMediator mediator,
             CancellationToken ct) =>
             Results.Ok(await mediator.Send(command, ct)))
             .WithName("UpdateScheduleScrapingSettings")
             .WithSummary("Update schedule scraping settings")
-            .WithDescription("Updates how many days ahead to scrape for sporting events.");
+            .WithDescription("Partially updates schedule scraping settings. Only non-null fields are applied.");
 
         group.MapGet("/vod-launcher", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetVodLauncherSettingsQuery(), ct)))
@@ -53,14 +53,14 @@ public static class SettingsEndpoints
             .WithSummary("Get VOD launcher settings")
             .WithDescription("Returns VOD launcher settings including library paths per title type.");
 
-        group.MapPut("/vod-launcher", async (
+        group.MapPatch("/vod-launcher", async (
             [FromBody] UpdateVodLauncherSettingsCommand command,
             IMediator mediator,
             CancellationToken ct) =>
             Results.Ok(await mediator.Send(command, ct)))
             .WithName("UpdateVodLauncherSettings")
             .WithSummary("Update VOD launcher settings")
-            .WithDescription("Updates the library paths where VOD launcher files are written per title type.");
+            .WithDescription("Partially updates VOD launcher settings. Only non-null fields are applied.");
 
         group.MapGet("/hdhomerun", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetHdHomerunSettingsQuery(), ct)))
@@ -68,14 +68,14 @@ public static class SettingsEndpoints
             .WithSummary("Get HDHomeRun settings")
             .WithDescription("Returns HDHomeRun settings including the device URL used for XMLTV EPG fetching.");
 
-        group.MapPut("/hdhomerun", async (
+        group.MapPatch("/hdhomerun", async (
             [FromBody] UpdateHdHomerunSettingsCommand command,
             IMediator mediator,
             CancellationToken ct) =>
             Results.Ok(await mediator.Send(command, ct)))
             .WithName("UpdateHdHomerunSettings")
             .WithSummary("Update HDHomeRun settings")
-            .WithDescription("Updates the HDHomeRun device URL.");
+            .WithDescription("Partially updates HDHomeRun settings. Only non-null fields are applied.");
 
         return app;
     }

@@ -5,8 +5,8 @@ public class HdHomerunSettings
     public int Id { get; private set; }
     public string DeviceUrl { get; private set; } = string.Empty;
 
-    public void Configure(string deviceUrl)
+    public void Configure(string? deviceUrl)
     {
-        DeviceUrl = deviceUrl;
+        if (deviceUrl is not null) DeviceUrl = deviceUrl;
     }
 }

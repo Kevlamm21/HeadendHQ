@@ -20,12 +20,12 @@ public class TeamAsset : IEntity<int>
     public string? PrimaryColorHex { get; set; }
     public string? SecondaryColorHex { get; set; }
 
-    public void Update(string teamName, League league, string? primaryColor, string? secondaryColor, byte[]? logoData)
+    public void Update(string? teamName, League? league, string? primaryColor, string? secondaryColor, byte[]? logoData)
     {
-        TeamName = teamName;
-        League = league;
-        if (primaryColor is not null) PrimaryColorHex = primaryColor;
-        if (secondaryColor is not null) SecondaryColorHex = secondaryColor;
+        if (teamName is not null) TeamName = teamName;
+        if (league is not null) League = league.Value;
+        if (primaryColor is not null) PrimaryColorHex = primaryColor == "" ? null : primaryColor;
+        if (secondaryColor is not null) SecondaryColorHex = secondaryColor == "" ? null : secondaryColor;
         if (logoData is not null) LogoData = logoData;
     }
 }

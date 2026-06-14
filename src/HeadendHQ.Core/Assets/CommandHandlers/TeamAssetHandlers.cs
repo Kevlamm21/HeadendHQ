@@ -49,8 +49,8 @@ public class CreateTeamAssetHandler(IWorkspace workspace)
 
 public record UpdateTeamAssetCommand(
     int Id,
-    string TeamName,
-    League League,
+    string? TeamName,
+    League? League,
     string? PrimaryColorHex,
     string? SecondaryColorHex) : ICommand<TeamAsset>;
 
@@ -73,7 +73,7 @@ public class UploadTeamLogoHandler(IWorkspace workspace, IImageNormalizer normal
     public async ValueTask<TeamAsset> Handle(UploadTeamLogoCommand command, CancellationToken ct)
     {
         var asset = await workspace.LoadSingleOrDefault(new TeamAssetByNameLeagueSpec(command.TeamName, command.League), ct)
-            ?? throw new NotFoundException($"Team asset '{command.TeamName}' ({command.League}) not found.");
+            ?? throw new NotFoundException<TeamAsset>($"{command.TeamName} ({command.League})");
         asset.LogoData = await normalizer.NormalizeTeamLogoAsync(command.LogoData, ct);
         return asset;
     }

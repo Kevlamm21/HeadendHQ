@@ -3,7 +3,7 @@ using Mediator;
 
 namespace HeadendHQ.HdHomerun.Settings;
 
-public record UpdateHdHomerunSettingsCommand(string DeviceUrl) : ICommand<HdHomerunSettings>;
+public record UpdateHdHomerunSettingsCommand(string? DeviceUrl) : ICommand<HdHomerunSettings>;
 
 public class UpdateHdHomerunSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateHdHomerunSettingsCommand, HdHomerunSettings>

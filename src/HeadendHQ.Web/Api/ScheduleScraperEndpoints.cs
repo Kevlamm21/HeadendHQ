@@ -1,7 +1,7 @@
 using HeadendHQ.ScheduleScraping;
 using Mediator;
 
-namespace HeadendHQ.Web.Titles;
+namespace HeadendHQ.Web.Api;
 
 public static class ScheduleScraperEndpoints
 {

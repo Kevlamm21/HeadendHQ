@@ -1,9 +1,8 @@
 using HeadendHQ.Core.Assets.CommandHandlers;
-using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using Mediator;
 
-namespace HeadendHQ.Web.Assets;
+namespace HeadendHQ.Web.Api;
 
 public static class AssetEndpoints
 {
@@ -18,10 +17,7 @@ public static class AssetEndpoints
     private static void MapLeagueAssetEndpoints(WebApplication app)
     {
         app.MapGet("/assets/leagues", async (IMediator mediator, CancellationToken ct) =>
-        {
-            var assets = await mediator.Send(new GetLeagueAssetsQuery(), ct);
-            return Results.Ok(assets);
-        })
+            Results.Ok(await mediator.Send(new GetLeagueAssetsQuery(), ct)))
         .WithTags("League Assets")
         .WithName("GetLeagueAssets")
         .WithSummary("List league assets")
@@ -39,16 +35,8 @@ public static class AssetEndpoints
 
         app.MapPut("/assets/leagues/{league}/{variant}/logo", async (League league, string variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadLeagueLogoCommand(league, variant, logoData), ct);
-                return Results.Ok(asset);
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            var asset = await mediator.Send(new UploadLeagueLogoCommand(league, variant, await ReadBytesAsync(logo)), ct);
+            return Results.Ok(asset);
         })
         .WithTags("League Assets")
         .WithName("UploadLeagueLogo")
@@ -58,15 +46,8 @@ public static class AssetEndpoints
 
         app.MapDelete("/assets/leagues/{id:int}", async (int id, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                await mediator.Send(new DeleteLeagueAssetCommand(id), ct);
-                return Results.NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            await mediator.Send(new DeleteLeagueAssetCommand(id), ct);
+            return Results.NoContent();
         })
         .WithTags("League Assets")
         .WithName("DeleteLeagueAsset")
@@ -77,10 +58,7 @@ public static class AssetEndpoints
     private static void MapTeamAssetEndpoints(WebApplication app)
     {
         app.MapGet("/assets/teams", async (IMediator mediator, CancellationToken ct) =>
-        {
-            var assets = await mediator.Send(new GetTeamAssetsQuery(), ct);
-            return Results.Ok(assets);
-        })
+            Results.Ok(await mediator.Send(new GetTeamAssetsQuery(), ct)))
         .WithTags("Team Assets")
         .WithName("GetTeamAssets")
         .WithSummary("List team assets")
@@ -96,35 +74,17 @@ public static class AssetEndpoints
         .WithSummary("Create team asset")
         .WithDescription("Creates a team asset with metadata. Upload the logo separately via PUT /assets/teams/{league}/{teamName}/logo.");
 
-        app.MapPut("/assets/teams/{id:int}", async (int id, UpdateTeamAssetCommand command, IMediator mediator, CancellationToken ct) =>
-        {
-            try
-            {
-                var asset = await mediator.Send(command with { Id = id }, ct);
-                return Results.Ok(asset);
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
-        })
+        app.MapPatch("/assets/teams/{id:int}", async (int id, UpdateTeamAssetCommand command, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(command with { Id = id }, ct)))
         .WithTags("Team Assets")
         .WithName("UpdateTeamAsset")
         .WithSummary("Update team asset")
-        .WithDescription("Updates team metadata (name, league, colors). Does not affect the stored logo.");
+        .WithDescription("Partially updates team metadata (name, league, colors). Only non-null fields are applied. Does not affect the stored logo.");
 
         app.MapPut("/assets/teams/{league}/{teamName}/logo", async (League league, string teamName, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadTeamLogoCommand(teamName, league, logoData), ct);
-                return Results.Ok(asset);
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            var asset = await mediator.Send(new UploadTeamLogoCommand(teamName, league, await ReadBytesAsync(logo)), ct);
+            return Results.Ok(asset);
         })
         .WithTags("Team Assets")
         .WithName("UploadTeamLogo")
@@ -134,15 +94,8 @@ public static class AssetEndpoints
 
         app.MapDelete("/assets/teams/{id:int}", async (int id, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                await mediator.Send(new DeleteTeamAssetCommand(id), ct);
-                return Results.NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            await mediator.Send(new DeleteTeamAssetCommand(id), ct);
+            return Results.NoContent();
         })
         .WithTags("Team Assets")
         .WithName("DeleteTeamAsset")
@@ -153,10 +106,7 @@ public static class AssetEndpoints
     private static void MapStreamingServiceAssetEndpoints(WebApplication app)
     {
         app.MapGet("/assets/streaming", async (IMediator mediator, CancellationToken ct) =>
-        {
-            var assets = await mediator.Send(new GetStreamingServiceAssetsQuery(), ct);
-            return Results.Ok(assets);
-        })
+            Results.Ok(await mediator.Send(new GetStreamingServiceAssetsQuery(), ct)))
         .WithTags("Streaming Assets")
         .WithName("GetStreamingServiceAssets")
         .WithSummary("List streaming service assets")
@@ -164,16 +114,8 @@ public static class AssetEndpoints
 
         app.MapPut("/assets/streaming/{service}/logo", async (StreamingService service, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var logoData = await ReadBytesAsync(logo);
-                var asset = await mediator.Send(new UploadStreamingLogoCommand(service, logoData), ct);
-                return Results.Ok(asset);
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            var asset = await mediator.Send(new UploadStreamingLogoCommand(service, await ReadBytesAsync(logo)), ct);
+            return Results.Ok(asset);
         })
         .WithTags("Streaming Assets")
         .WithName("UploadStreamingLogo")
@@ -185,10 +127,7 @@ public static class AssetEndpoints
     private static void MapWordMarkEndpoints(WebApplication app)
     {
         app.MapGet("/assets/wordmarks", async (IMediator mediator, CancellationToken ct) =>
-        {
-            var wordMarks = await mediator.Send(new GetWordMarksQuery(), ct);
-            return Results.Ok(wordMarks);
-        })
+            Results.Ok(await mediator.Send(new GetWordMarksQuery(), ct)))
         .WithTags("Word Marks")
         .WithName("GetWordMarks")
         .WithSummary("List word marks")
@@ -206,16 +145,8 @@ public static class AssetEndpoints
 
         app.MapPut("/assets/wordmarks/{league}/{variant}/logo", async (League league, string variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var logoData = await ReadBytesAsync(logo);
-                var wordMark = await mediator.Send(new UploadWordMarkLogoCommand(league, variant, logoData), ct);
-                return Results.Ok(wordMark);
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            var wordMark = await mediator.Send(new UploadWordMarkLogoCommand(league, variant, await ReadBytesAsync(logo)), ct);
+            return Results.Ok(wordMark);
         })
         .WithTags("Word Marks")
         .WithName("UploadWordMarkLogo")
@@ -225,15 +156,8 @@ public static class AssetEndpoints
 
         app.MapDelete("/assets/wordmarks/{id:int}", async (int id, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                await mediator.Send(new DeleteWordMarkCommand(id), ct);
-                return Results.NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return Results.NotFound(new { message = ex.Message });
-            }
+            await mediator.Send(new DeleteWordMarkCommand(id), ct);
+            return Results.NoContent();
         })
         .WithTags("Word Marks")
         .WithName("DeleteWordMark")

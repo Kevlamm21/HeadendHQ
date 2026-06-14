@@ -268,7 +268,7 @@ namespace HeadendHQ.Data.Migrations
 
                             b1.Property<string>("Plot");
 
-                            b1.Property<float?>("Rating");
+                            b1.Property<string>("Rating");
 
                             b1.PrimitiveCollection<string>("Sets")
                                 .IsRequired();

@@ -5,7 +5,7 @@ using Mediator;
 namespace HeadendHQ.VodLauncher.Settings;
 
 public record UpdateVodLauncherSettingsCommand(
-    Dictionary<TitleType, string> LibraryPaths) : ICommand<VodLauncherSettings>;
+    Dictionary<TitleType, string>? LibraryPaths) : ICommand<VodLauncherSettings>;
 
 public class UpdateVodLauncherSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateVodLauncherSettingsCommand, VodLauncherSettings>

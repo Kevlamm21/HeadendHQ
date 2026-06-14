@@ -3,7 +3,7 @@ using Mediator;
 
 namespace HeadendHQ.Core.Titles.CommandHandlers;
 
-public record UpdateTitleCommand(Guid Id, TitleRequest Request) : ICommand<Title>;
+public record UpdateTitleCommand(Guid Id, UpdateTitleRequest Request) : ICommand<Title>;
 
 public class UpdateTitleHandler(IWorkspace workspace)
     : ICommandHandler<UpdateTitleCommand, Title>

@@ -3,6 +3,7 @@
     <File Path=".github/workflows/deploy.yml" />
   </Folder>
   <Project Path="src/HeadendHQ.AmazonPrime/HeadendHQ.AmazonPrime.csproj" />
+  <Project Path="src/HeadendHQ.AspNet/HeadendHQ.AspNet.csproj" />
   <Project Path="src/HeadendHQ.Core/HeadendHQ.Core.csproj" Id="e0569d6a-3352-44b4-b137-0e774f3a1dfc" />
   <Project Path="src/HeadendHQ.Data/HeadendHQ.Data.csproj" Id="493afe61-9c77-44c9-8c86-bcf42ab5741f" />
   <Project Path="src/HeadendHQ.FFmpeg/HeadendHQ.FFmpeg.csproj" />
@@ -12,6 +13,7 @@
   <Project Path="src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj" />
   <Project Path="src/HeadendHQ.Mediator/HeadendHQ.Mediator.csproj" />
   <Project Path="src/HeadendHQ.Nba/HeadendHQ.Nba.csproj" />
+  <Project Path="src/HeadendHQ.Nfo/HeadendHQ.Nfo.csproj" />
   <Project Path="src/HeadendHQ.ScheduleScraping/HeadendHQ.ScheduleScraping.csproj" />
   <Project Path="src/HeadendHQ.Peacock/HeadendHQ.Peacock.csproj" />
   <Project Path="src/HeadendHQ.SixLabors/HeadendHQ.SixLabors.csproj" />

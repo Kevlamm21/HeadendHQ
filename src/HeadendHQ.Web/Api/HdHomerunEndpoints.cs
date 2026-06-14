@@ -1,7 +1,7 @@
 using HeadendHQ.HdHomerun.CommandHandlers;
 using Mediator;
 
-namespace HeadendHQ.Web.HdHomerun;
+namespace HeadendHQ.Web.Api;
 
 public static class HdHomerunEndpoints
 {

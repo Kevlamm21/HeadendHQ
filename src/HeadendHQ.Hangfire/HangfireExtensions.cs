@@ -11,11 +11,11 @@ namespace HeadendHQ.Hangfire;
 
 public static class HangfireExtensions
 {
-    public static void ConfigureHangfire(this WebApplicationBuilder builder, string connectionString)
+    public static void ConfigureHangfire(this WebApplicationBuilder builder, string dbPath)
     {
 
         builder.Services.AddHangfire(config => config
-            .UseSQLiteStorage(connectionString, new SQLiteStorageOptions
+            .UseSQLiteStorage(dbPath, new SQLiteStorageOptions
             {
                 QueuePollInterval = TimeSpan.FromSeconds(1)
             }));

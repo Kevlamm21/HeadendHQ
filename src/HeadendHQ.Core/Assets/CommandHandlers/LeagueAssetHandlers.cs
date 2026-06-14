@@ -44,7 +44,7 @@ public class UploadLeagueLogoHandler(IWorkspace workspace, IImageNormalizer norm
     public async ValueTask<LeagueAsset> Handle(UploadLeagueLogoCommand command, CancellationToken ct)
     {
         var asset = await workspace.LoadSingleOrDefault(new LeagueAssetByLeagueVariantSpec(command.League, command.Variant), ct)
-            ?? throw new NotFoundException($"League asset '{command.League}' ({command.Variant}) not found.");
+            ?? throw new NotFoundException<LeagueAsset>($"{command.League}/{command.Variant}");
         asset.LogoData = await normalizer.NormalizeLeagueLogoAsync(command.LogoData, ct);
         return asset;
     }
