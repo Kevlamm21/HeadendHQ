@@ -24,9 +24,6 @@ builder.ConfigureMediator(services => services.AddMediator(options =>
 }));
 
 var dbPath = builder.Configuration["Database:Path"] ?? "/data/headendhq.db";
-var hangfireDbPath = Path.Combine(
-    Path.GetDirectoryName(dbPath) ?? "/data",
-    "hangfire.db");
 
 builder.ConfigureDatabase(dbPath);
 
@@ -41,7 +38,7 @@ builder.ConfigureVodLauncher();
 builder.ConfigureFFmpeg();
 builder.ConfigureSixLabors();
 builder.ConfigureWeb();
-builder.ConfigureHangfire(hangfireDbPath);
+builder.ConfigureHangfire();
 
 var app = builder.Build();
 

@@ -1,7 +1,7 @@
 using Hangfire;
 using Hangfire.AspNetCore;
+using Hangfire.InMemory;
 using Hangfire.Server;
-using Hangfire.Storage.SQLite;
 using HeadendHQ.Core.Shared;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,14 +11,10 @@ namespace HeadendHQ.Hangfire;
 
 public static class HangfireExtensions
 {
-    public static void ConfigureHangfire(this WebApplicationBuilder builder, string dbPath)
+    public static void ConfigureHangfire(this WebApplicationBuilder builder)
     {
-
         builder.Services.AddHangfire(config => config
-            .UseSQLiteStorage(dbPath, new SQLiteStorageOptions
-            {
-                QueuePollInterval = TimeSpan.FromSeconds(1)
-            }));
+            .UseInMemoryStorage());
 
         builder.Services.AddSingleton<JobActivator, UnitOfWorkActivator>();
         builder.Services.AddHangfireServer();
