@@ -5,6 +5,7 @@ using HeadendHQ.Core.Assets.Specifications;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
+using HeadendHQ.Core.Titles.Specifications;
 using HeadendHQ.Nba.Models;
 using Mediator;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,8 @@ public class NbaScheduleScraper(
 {
     private const string ScheduleUrl = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json";
 
+    public string Provider => "NBA.com";
+
     public async Task<int> FetchEventsAsync(int scrapeWindowDays, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
@@ -28,6 +31,11 @@ public class NbaScheduleScraper(
         var json = await FetchScheduleJsonAsync(ct);
         var schedule = JsonSerializer.Deserialize<NbaScheduleRoot>(json)
             ?? throw new InvalidOperationException("NBA schedule response deserialized to null.");
+
+        var allGameIds = schedule.LeagueSchedule.GameDates
+            .SelectMany(gd => gd.Games)
+            .Select(g => g.GameId)
+            .ToHashSet();
 
         var leagueAsset = await readModel.SingleOrDefault(new LeagueAssetByLeagueVariantSpec(League.Nba, "Default"), ct);
         var wordMark = await readModel.SingleOrDefault(new WordMarkByLeagueVariantSpec(League.Nba, "Original"), ct);
@@ -90,7 +98,7 @@ public class NbaScheduleScraper(
                     StreamingService = resolvedService.Value,
                     ExternalId = game.GameId,
                     EventUrl = resolvedLink,
-                    Provider = "NBA.com",
+                    Provider = Provider,
                     StartUtc = startUtc,
                     EndUtc = startUtc.AddHours(3),
                     Metadata = metadata,
@@ -99,6 +107,28 @@ public class NbaScheduleScraper(
                 await mediator.Send(new CreateTitleCommand(request), ct);
                 upserted++;
             }
+        }
+
+        if (allGameIds.Count > 0)
+        {
+            var futureTitles = await readModel.Search(new FutureProviderTitlesSpec(Provider, now), ct);
+            var removed = 0;
+
+            foreach (var title in futureTitles)
+            {
+                if (title.ExternalId is not null && !allGameIds.Contains(title.ExternalId))
+                {
+                    await mediator.Send(new DeleteTitleCommand(title.Id), ct);
+                    removed++;
+                }
+            }
+
+            if (removed > 0)
+                logger.LogInformation("NBA reconcile removed {Count} cancelled/removed games.", removed);
+        }
+        else
+        {
+            logger.LogWarning("NBA schedule response contained no games; skipping reconciliation.");
         }
 
         logger.LogInformation("NBA scrape complete. {Count} events upserted.", upserted);
