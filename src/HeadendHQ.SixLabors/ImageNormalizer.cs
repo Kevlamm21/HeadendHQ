@@ -34,8 +34,7 @@ public class ImageNormalizer : IImageNormalizer
         image.Mutate(ctx => ctx.Resize(new ResizeOptions
         {
             Size = new Size(width, height),
-            Mode = ResizeMode.Pad,
-            PadColor = Color.Transparent
+            Mode = ResizeMode.Crop
         }));
 
         using var output = new MemoryStream();
@@ -50,8 +49,7 @@ public class ImageNormalizer : IImageNormalizer
         image.Mutate(ctx => ctx.Resize(new ResizeOptions
         {
             Size = new Size(width, height),
-            Mode = ResizeMode.Pad,
-            PadColor = Color.Black
+            Mode = ResizeMode.Crop
         }));
 
         using var output = new MemoryStream();
