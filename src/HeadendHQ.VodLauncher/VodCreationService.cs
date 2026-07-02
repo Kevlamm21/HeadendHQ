@@ -29,7 +29,7 @@ public class VodCreationService(
             return;
         }
 
-        if (title.VodLauncherPath is null)
+        if (!title.IsVideoCreated)
         {
             var settings = await mediator.Send(new GetVodLauncherSettingsQuery(), ct);
             if (!settings.LibraryPaths.TryGetValue(title.Type, out var libraryPath))
@@ -45,6 +45,7 @@ public class VodCreationService(
             }
 
             title.VodLauncherPath = await CreateVideoAsync(title, libraryPath, ct);
+            title.IsVideoCreated = true;
         }
 
         if (!title.ArtworkCreated && title.Type == TitleType.SportingEvent)

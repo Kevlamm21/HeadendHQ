@@ -15,6 +15,6 @@ public class TitlesNeedingProductionTodaySpec : ISpecification<Title>
 
     public IQueryable<Title> Apply(IQueryable<Title> q) =>
         q.Where(t => t.IsActive &&
-            (t.VodLauncherPath == null || !t.ArtworkCreated) &&
+            (!t.IsVideoCreated || !t.ArtworkCreated) &&
             (t.StartUtc == null || (t.StartUtc >= _todayUtcStart && t.StartUtc < _todayUtcEnd)));
 }

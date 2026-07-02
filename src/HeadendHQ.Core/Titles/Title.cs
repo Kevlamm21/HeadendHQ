@@ -29,6 +29,8 @@ public class Title : Entity<Guid>
     public string? AdbCommand { get; set; }
     public string? VodLauncherPath { get; set; }
     public bool ArtworkCreated { get; set; }
+    public bool IsVideoCreated { get; set; }
+    public string? LiveJobId { get; set; }
     public string Provider { get; set; } = string.Empty;
     public TitleMetadata? Metadata { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -40,6 +42,8 @@ public class Title : Entity<Guid>
 
     public void Update(UpdateTitleRequest request)
     {
+        var metadataChanged = request.Metadata is not null || request.IsLive is not null || request.StartUtc != StartUtc;
+
         if (request.Name is not null) Name = request.Name;
         if (request.Type is not null) Type = request.Type.Value;
         if (request.StreamingService is not null) StreamingService = request.StreamingService.Value;
@@ -59,7 +63,6 @@ public class Title : Entity<Guid>
             }
         }
 
-        var metadataChanged = request.Metadata is not null || request.IsLive is not null;
         if (request.Metadata is not null) Metadata = request.Metadata;
         if (request.IsLive is not null) IsLive = request.IsLive.Value;
 

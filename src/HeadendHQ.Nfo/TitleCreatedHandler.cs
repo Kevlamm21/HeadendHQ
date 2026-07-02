@@ -1,24 +1,28 @@
 using Hangfire;
+using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using Mediator;
 
 namespace HeadendHQ.Nfo;
 
-public class TitleCreatedHandler(IBackgroundJobClient jobClient) : INotificationHandler<TitleCreated>
+public class TitleCreatedHandler(IBackgroundJobClient jobClient, IWorkspace workspace) : INotificationHandler<TitleCreated>
 {
-    public ValueTask Handle(TitleCreated notification, CancellationToken cancellationToken)
+    public async ValueTask Handle(TitleCreated notification, CancellationToken cancellationToken)
     {
         if (notification.StartUtc is not { } startUtc)
-            return ValueTask.CompletedTask;
+            return;
 
         if (startUtc.ToLocalTime().Date != DateTime.Now.Date)
-            return ValueTask.CompletedTask;
+            return;
 
         var scheduledAt = new DateTimeOffset(startUtc, TimeSpan.Zero);
 
-        if (scheduledAt > DateTimeOffset.UtcNow)
-            jobClient.Schedule<TitleGoesLiveService>(s => s.MarkAsLiveAsync(notification.TitleId, CancellationToken.None), scheduledAt);
+        if (scheduledAt <= DateTimeOffset.UtcNow)
+            return;
 
-        return ValueTask.CompletedTask;
+        var jobId = jobClient.Schedule<TitleGoesLiveService>(s => s.MarkAsLiveAsync(notification.TitleId, CancellationToken.None), scheduledAt);
+
+        var title = await workspace.LoadById<Title, Guid>(notification.TitleId, cancellationToken);
+        title.LiveJobId = jobId;
     }
 }
