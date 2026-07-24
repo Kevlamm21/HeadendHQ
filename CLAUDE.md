@@ -152,3 +152,45 @@ public interface IAdbExtractor
 - Use a typed `HttpClient` per source
 - Follow existing Minimal API endpoint extension method pattern
 - No EF migrations — `EnsureCreated()` handles schema (existing project pattern)
+
+## Open Design Question: Playwright Decoupling (unresolved — pick up here)
+
+`HeadendHQ.Playwright` was extracted (issue #49) so `Microsoft.Playwright` boilerplate
+(Chromium launch, idle-timeout shutdown, one fresh `IBrowserContext` per call) isn't
+duplicated across `HeadendHQ.Espn`, `HeadendHQ.Peacock`, `HeadendHQ.Nba`. **Currently shipped:**
+`IBrowserSessionProvider.CreateSessionAsync(ct, configureContext?)` returns a real Playwright
+`IBrowserContext` directly (an "escape hatch" design) — consumers write their own Playwright
+page code inline. Two small extension methods (`GotoAndWaitForLoadAsync`,
+`GotoAndWaitForDomContentAsync` in `PlaywrightPageExtensions.cs`) hide the `WaitUntilState`/
+`LoadState` enum literals so Espn/Peacock/Nba don't need `using Microsoft.Playwright;` in
+source, and their `.csproj` files no longer carry an explicit `PackageReference` to
+`Microsoft.Playwright` — but the package still flows to them **transitively** through the
+`ProjectReference` to `HeadendHQ.Playwright` (confirmed via `dotnet list package
+--include-transitive`). This is NOT true decoupling — `IBrowserContext`/`IPage` are still
+fully resolvable in those projects, just not spelled out in current source.
+
+**The unresolved question:** the user wants true decoupling — swap the entire scraping
+backend (Playwright → something else) later without editing Espn/Peacock/Nba at all — while
+also keeping fairly custom, resilient-to-markup-drift scraping logic per source, *without*
+having to add a new method to a shared interface every time a new site presents a new
+challenge (this was the explicit objection to the project's very first design, which had
+3 fixed primitive methods on `IBrowserAutomationService`: `GetPageHtmlAsync`,
+`GetFinalUrlAfterNavigationAsync`, `GetJsonViaBrowserContextAsync`).
+
+**Options discussed, none chosen yet:**
+1. **Fixed primitive methods** (the original design) — full decoupling (no Playwright type
+   ever leaks), but every new site need means editing the shared project. Rejected by user.
+2. **Escape hatch returning real `IBrowserContext`** (current shipped state) — no growing
+   interface, full flexibility per scraper, but zero real decoupling; swapping the backend
+   means rewriting every consumer.
+3. **Port/adapter with an owned vocabulary** (`IScrapingSession`/`IScrapingSessionFactory`
+   with methods like `NavigateAsync`, `GetContentAsync`, `EvaluateAsync(javaScript)`,
+   `ClickAsync`, `WaitForSelectorAsync`, `FetchJsonAsync` — proposed but not built) — true
+   decoupling (only `HeadendHQ.Playwright` ever names a Playwright type), and the
+   `EvaluateAsync(javaScript)` raw-JS-string escape hatch absorbs most one-off site quirks
+   without needing new C# methods on the shared interface. User's take: this is "better" than
+   option 1 (methods are more robust/reusable) but still the same underlying pattern
+   (a shared interface you must extend for sufficiently novel needs) — unsure it's worth
+   the added design/maintenance surface for a project this size. **User is still thinking
+   this over — do not implement option 3 (or anything else) until they explicitly decide.**
+   Pick the conversation back up from here next session.

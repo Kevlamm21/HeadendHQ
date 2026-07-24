@@ -1,10 +1,10 @@
 using HeadendHQ.Core;
 using HeadendHQ.Core.Titles;
-using Microsoft.Playwright;
+using HeadendHQ.Playwright;
 
 namespace HeadendHQ.Peacock;
 
-public class PeacockLinkResolver : ILinkResolver
+public class PeacockLinkResolver(IBrowserSessionProvider sessionProvider) : ILinkResolver
 {
     public StreamingService Service => StreamingService.Peacock;
 
@@ -13,13 +13,10 @@ public class PeacockLinkResolver : ILinkResolver
         if (string.IsNullOrEmpty(rawLink))
             return null;
 
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
-        var page = await browser.NewPageAsync();
+        await using var session = await sessionProvider.CreateSessionAsync(ct);
+        var page = await session.Context.NewPageAsync();
 
-        await page.GotoAsync(rawLink, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
-
-        ct.ThrowIfCancellationRequested();
+        await page.GotoAndWaitForDomContentAsync(rawLink, ct);
 
         var uri = new Uri(page.Url);
         return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";

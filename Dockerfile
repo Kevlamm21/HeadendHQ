@@ -14,6 +14,7 @@ COPY ["src/HeadendHQ.ScheduleScraping/HeadendHQ.ScheduleScraping.csproj", "src/H
 COPY ["src/HeadendHQ.Espn/HeadendHQ.Espn.csproj", "src/HeadendHQ.Espn/"]
 COPY ["src/HeadendHQ.AmazonPrime/HeadendHQ.AmazonPrime.csproj", "src/HeadendHQ.AmazonPrime/"]
 COPY ["src/HeadendHQ.Peacock/HeadendHQ.Peacock.csproj", "src/HeadendHQ.Peacock/"]
+COPY ["src/HeadendHQ.Playwright/HeadendHQ.Playwright.csproj", "src/HeadendHQ.Playwright/"]
 COPY ["src/HeadendHQ.FFmpeg/HeadendHQ.FFmpeg.csproj", "src/HeadendHQ.FFmpeg/"]
 COPY ["src/HeadendHQ.VodLauncher/HeadendHQ.VodLauncher.csproj", "src/HeadendHQ.VodLauncher/"]
 COPY ["src/HeadendHQ.Hangfire/HeadendHQ.Hangfire.csproj", "src/HeadendHQ.Hangfire/"]

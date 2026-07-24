@@ -9,6 +9,7 @@ using HeadendHQ.Mediator;
 using HeadendHQ.Nba;
 using HeadendHQ.Nfo;
 using HeadendHQ.Peacock;
+using HeadendHQ.Playwright;
 using HeadendHQ.ScheduleScraping;
 using HeadendHQ.SixLabors;
 using HeadendHQ.VodLauncher;
@@ -27,6 +28,7 @@ var dbPath = builder.Configuration["Database:Path"] ?? "/data/headendhq.db";
 
 builder.ConfigureDatabase(dbPath);
 
+builder.ConfigurePlaywright();
 builder.ConfigureHdHomerun();
 builder.ConfigureNba();
 builder.ConfigureNfo();

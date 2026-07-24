@@ -40,6 +40,7 @@
     <ProjectReference Include="..\HeadendHQ.Hangfire\HeadendHQ.Hangfire.csproj" />
     <ProjectReference Include="..\HeadendHQ.Mediator\HeadendHQ.Mediator.csproj" />
     <ProjectReference Include="..\HeadendHQ.SixLabors\HeadendHQ.SixLabors.csproj" />
+    <ProjectReference Include="..\HeadendHQ.Playwright\HeadendHQ.Playwright.csproj" />
   </ItemGroup>
 
 </Project>

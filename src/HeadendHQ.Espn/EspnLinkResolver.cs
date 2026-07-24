@@ -1,11 +1,11 @@
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
 using HeadendHQ.Core.Titles;
-using Microsoft.Playwright;
+using HeadendHQ.Playwright;
 
 namespace HeadendHQ.Espn;
 
-public class EspnLinkResolver : ILinkResolver
+public class EspnLinkResolver(IBrowserSessionProvider sessionProvider) : ILinkResolver
 {
     private static readonly Regex GameIdPattern = new(@"[?&]gameId=(\d+)", RegexOptions.Compiled);
     private static readonly Regex StreamIdPattern = new(
@@ -25,27 +25,11 @@ public class EspnLinkResolver : ILinkResolver
 
         var gameId = gameIdMatch.Groups[1].Value;
 
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new()
-        {
-            Headless = true,
-            Args = ["--disable-blink-features=AutomationControlled"]
-        });
+        await using var session = await sessionProvider.CreateSessionAsync(ct);
+        var page = await session.Context.NewPageAsync();
 
-        await using var context = await browser.NewContextAsync(new()
-        {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        });
-
-        var page = await context.NewPageAsync();
-
-        await page.GotoAsync(
-            $"https://www.espn.com/watch/player/_/eventCalendarId/{gameId}",
-            new() { WaitUntil = WaitUntilState.Load });
-
-        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-
-        ct.ThrowIfCancellationRequested();
+        await page.GotoAndWaitForLoadAsync(
+            $"https://www.espn.com/watch/player/_/eventCalendarId/{gameId}", ct);
 
         var html = await page.ContentAsync();
 

@@ -7,9 +7,9 @@ using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
 using HeadendHQ.Core.Titles.Specifications;
 using HeadendHQ.Nba.Models;
+using HeadendHQ.Playwright;
 using Mediator;
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 
 namespace HeadendHQ.Nba;
 
@@ -17,6 +17,7 @@ public class NbaScheduleScraper(
     IMediator mediator,
     IReadModel readModel,
     StreamingServiceMapper streamingServiceMapper,
+    IBrowserSessionProvider sessionProvider,
     ILogger<NbaScheduleScraper> logger) : IScheduleScraper
 {
     private const string ScheduleUrl = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json";
@@ -162,21 +163,11 @@ public class NbaScheduleScraper(
         };
     }
 
-    private static async Task<string> FetchScheduleJsonAsync(CancellationToken ct)
+    private async Task<string> FetchScheduleJsonAsync(CancellationToken ct)
     {
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new()
-        {
-            Headless = true,
-            Args = ["--disable-blink-features=AutomationControlled"]
-        });
+        await using var session = await sessionProvider.CreateSessionAsync(ct);
 
-        await using var context = await browser.NewContextAsync(new()
-        {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
-        });
-
-        var response = await context.APIRequest.GetAsync(ScheduleUrl, new()
+        var response = await session.Context.APIRequest.GetAsync(ScheduleUrl, new()
         {
             Headers = new Dictionary<string, string>
             {
