@@ -10,7 +10,6 @@ COPY ["src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj", "src/HeadendHQ.HdHom
 COPY ["src/HeadendHQ.Nba/HeadendHQ.Nba.csproj", "src/HeadendHQ.Nba/"]
 COPY ["src/HeadendHQ.Nfo/HeadendHQ.Nfo.csproj", "src/HeadendHQ.Nfo/"]
 COPY ["src/HeadendHQ.SixLabors/HeadendHQ.SixLabors.csproj", "src/HeadendHQ.SixLabors/"]
-COPY ["src/HeadendHQ.ScheduleScraping/HeadendHQ.ScheduleScraping.csproj", "src/HeadendHQ.ScheduleScraping/"]
 COPY ["src/HeadendHQ.Espn/HeadendHQ.Espn.csproj", "src/HeadendHQ.Espn/"]
 COPY ["src/HeadendHQ.AmazonPrime/HeadendHQ.AmazonPrime.csproj", "src/HeadendHQ.AmazonPrime/"]
 COPY ["src/HeadendHQ.Peacock/HeadendHQ.Peacock.csproj", "src/HeadendHQ.Peacock/"]
