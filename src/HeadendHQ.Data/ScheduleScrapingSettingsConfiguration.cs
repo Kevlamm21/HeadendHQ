@@ -1,4 +1,4 @@
-using HeadendHQ.ScheduleScraping;
+using HeadendHQ.Core.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -10,5 +10,8 @@ internal class ScheduleScrapingSettingsConfiguration : IEntityTypeConfiguration<
     {
         builder.ToTable("ScheduleScrapingSettings");
         builder.HasKey(e => e.Id);
+
+        // Existing rows must land on the real default, not 0 (which would mean no players at all).
+        builder.Property(e => e.MaxAthletesPerTeam).HasDefaultValue(12);
     }
 }

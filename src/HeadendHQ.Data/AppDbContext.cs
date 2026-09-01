@@ -6,15 +6,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfiguration(new XmltvCacheConfiguration());
+        modelBuilder.ApplyConfiguration(new IptvGuideCacheConfiguration());
+        modelBuilder.ApplyConfiguration(new IptvChannelConfiguration());
         modelBuilder.ApplyConfiguration(new TitleConfiguration());
         modelBuilder.ApplyConfiguration(new GlobalSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new ScheduleScrapingSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new VodLauncherSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new HdHomerunSettingsConfiguration());
-        modelBuilder.ApplyConfiguration(new LeagueAssetConfiguration());
-        modelBuilder.ApplyConfiguration(new TeamAssetConfiguration());
-        modelBuilder.ApplyConfiguration(new StreamingServiceAssetConfiguration());
-        modelBuilder.ApplyConfiguration(new WordMarkConfiguration());
+
+        modelBuilder.ApplyConfiguration(new SourceSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new ImageConfiguration());
+        modelBuilder.ApplyConfiguration(new SportConfiguration());
+        modelBuilder.ApplyConfiguration(new LeagueConfiguration());
+        modelBuilder.ApplyConfiguration(new TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new AthleteConfiguration());
+        modelBuilder.ApplyConfiguration(new BroadcasterConfiguration());
+        modelBuilder.ApplyConfiguration(new CatalogSyncStateConfiguration());
+        modelBuilder.ApplyConfiguration(new SportingEventConfiguration());
     }
 }

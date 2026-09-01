@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.Nba;
 
@@ -8,7 +7,7 @@ public class NbaExtractor(NbaLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex IdPattern = new(@"([0-9]{10})$", RegexOptions.Compiled);
 
-    public StreamingService Service => StreamingService.NbaLeaguePass;
+    public string BroadcasterSlug => "nba-league-pass";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

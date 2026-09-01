@@ -1,9 +1,7 @@
-using HeadendHQ.Core.Titles;
-
 namespace HeadendHQ.Core;
 
 public interface ILinkResolver
 {
-    StreamingService Service { get; }
+    string BroadcasterSlug { get; }
     Task<string?> ResolveAsync(string? rawLink, CancellationToken ct);
 }

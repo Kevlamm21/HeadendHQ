@@ -15,10 +15,11 @@ public static class ApiExtensions
             .WithSummary("Health check")
             .WithDescription("Returns the current health status of the API.");
 
-        app.MapHdHomerunEndpoints();
+        app.MapIptvEndpoints();
         app.MapTitleEndpoints();
-        app.MapScheduleScraperEndpoints();
-        app.MapAssetEndpoints();
+        app.MapEventEndpoints();
+        app.MapCatalogEndpoints();
+        app.MapMediaEndpoints();
         app.MapSettingsEndpoints();
     }
 }

@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.Espn;
 
@@ -10,7 +9,7 @@ public class EspnExtractor(EspnLinkResolver linkResolver) : IAdbExtractor
         @"\/id\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public StreamingService Service => StreamingService.Espn;
+    public string BroadcasterSlug => "espn";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

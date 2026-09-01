@@ -9,7 +9,6 @@ using HeadendHQ.Mediator;
 using HeadendHQ.Nba;
 using HeadendHQ.Nfo;
 using HeadendHQ.Peacock;
-using HeadendHQ.ScheduleScraping;
 using HeadendHQ.SixLabors;
 using HeadendHQ.VodLauncher;
 using HeadendHQ.Web;
@@ -33,7 +32,6 @@ builder.ConfigureNfo();
 builder.ConfigureEspn();
 builder.ConfigurePeacock();
 builder.ConfigureAmazonPrime();
-builder.ConfigureScheduleScraping();
 builder.ConfigureVodLauncher();
 builder.ConfigureFFmpeg();
 builder.ConfigureSixLabors();
@@ -46,6 +44,7 @@ await app.InitializeDatabase();
 
 app.UseAspNet();
 app.UseHangfireDashboard();
+app.UseJobs();
 app.MapApi();
 
 app.Run();

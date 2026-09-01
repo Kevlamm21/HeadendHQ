@@ -33,7 +33,7 @@ public class UploadTitleImagesHandler(
                 return Unit.Value;
             }
 
-            title.VodLauncherPath = Path.Combine(libraryPath, title.Name);
+            title.SetVodLauncherPath(Path.Combine(libraryPath, title.Name));
         }
 
         Directory.CreateDirectory(title.VodLauncherPath);
@@ -44,7 +44,7 @@ public class UploadTitleImagesHandler(
         {
             var bytes = await ReadAllBytesAsync(command.Poster, ct);
             var normalized = await normalizer.NormalizePosterAsync(bytes, ct);
-            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, $"{title.Name}.jpg"), normalized, ct);
+            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, TitleArtworkFiles.Poster(title.Name)), normalized, ct);
             uploaded = true;
         }
 
@@ -52,7 +52,7 @@ public class UploadTitleImagesHandler(
         {
             var bytes = await ReadAllBytesAsync(command.Background, ct);
             var normalized = await normalizer.NormalizeBackgroundAsync(bytes, ct);
-            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, $"{title.Name}-fanart-1.jpg"), normalized, ct);
+            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, TitleArtworkFiles.Backdrop(title.Name)), normalized, ct);
             uploaded = true;
         }
 
@@ -60,7 +60,7 @@ public class UploadTitleImagesHandler(
         {
             var bytes = await ReadAllBytesAsync(command.Thumbnail, ct);
             var normalized = await normalizer.NormalizeBackgroundAsync(bytes, ct);
-            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, $"{title.Name}-thumb.jpg"), normalized, ct);
+            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, TitleArtworkFiles.Thumb(title.Name)), normalized, ct);
             uploaded = true;
         }
 
@@ -68,13 +68,13 @@ public class UploadTitleImagesHandler(
         {
             var bytes = await ReadAllBytesAsync(command.Wordmark, ct);
             var normalized = await normalizer.NormalizeWordMarkAsync(bytes, ct);
-            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, $"{title.Name}-clearlogo.png"), normalized, ct);
+            await File.WriteAllBytesAsync(Path.Combine(title.VodLauncherPath, TitleArtworkFiles.ClearLogo(title.Name)), normalized, ct);
             uploaded = true;
         }
 
         if (uploaded)
         {
-            title.ArtworkCreated = true;
+            title.MarkArtworkCreated();
             logger.LogInformation("Uploaded images for title {Id} ({Name}).", title.Id, title.Name);
         }
 

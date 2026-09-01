@@ -9,6 +9,7 @@ public static class NfoExtensions
     public static void ConfigureNfo(this WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<NfoWriter>();
+        builder.Services.AddScoped<TitleGoesLiveService>();
         builder.Services.AddScoped<INfoWriter>(sp => sp.GetRequiredService<NfoWriter>());
     }
 }

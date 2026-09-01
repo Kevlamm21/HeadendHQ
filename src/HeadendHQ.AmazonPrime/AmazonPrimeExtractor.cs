@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.AmazonPrime;
 
@@ -8,7 +7,7 @@ public class AmazonPrimeExtractor(AmazonPrimeLinkResolver linkResolver) : IAdbEx
 {
     private static readonly Regex IdPattern = new(@"\/detail\/([A-Za-z0-9.\-]+)", RegexOptions.Compiled);
 
-    public StreamingService Service => StreamingService.AmazonPrime;
+    public string BroadcasterSlug => "prime-video";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

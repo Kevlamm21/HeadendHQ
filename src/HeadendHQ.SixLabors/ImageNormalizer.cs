@@ -12,6 +12,9 @@ public class ImageNormalizer : IImageNormalizer
     public Task<byte[]> NormalizeTeamLogoAsync(byte[] input, CancellationToken ct = default) =>
         NormalizePngAsync(input, width: 800, height: 800, ct);
 
+    public Task<byte[]> NormalizeHeadshotAsync(byte[] input, CancellationToken ct = default) =>
+        NormalizePngAsync(input, width: 400, height: 400, ct);
+
     public Task<byte[]> NormalizeLeagueLogoAsync(byte[] input, CancellationToken ct = default) =>
         NormalizePngAsync(input, width: 300, height: 300, ct);
 
@@ -26,6 +29,12 @@ public class ImageNormalizer : IImageNormalizer
 
     public Task<byte[]> NormalizeBackgroundAsync(byte[] input, CancellationToken ct = default) =>
         NormalizeJpegAsync(input, width: 1920, height: 1080, ct);
+
+    public (int Width, int Height) Measure(byte[] input)
+    {
+        var info = Image.Identify(input);
+        return (info.Width, info.Height);
+    }
 
     private static async Task<byte[]> NormalizePngAsync(byte[] input, int width, int height, CancellationToken ct)
     {

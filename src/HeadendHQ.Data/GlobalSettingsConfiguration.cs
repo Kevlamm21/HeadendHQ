@@ -10,6 +10,5 @@ internal class GlobalSettingsConfiguration : IEntityTypeConfiguration<GlobalSett
     {
         builder.ToTable("GlobalSettings");
         builder.HasKey(e => e.Id);
-        builder.PrimitiveCollection(e => e.EnabledStreamingServices);
     }
 }

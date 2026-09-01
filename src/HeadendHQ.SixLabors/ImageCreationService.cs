@@ -1,5 +1,5 @@
 using HeadendHQ.Core;
-using HeadendHQ.Core.Assets;
+using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 using SixLabors.ImageSharp;
@@ -15,29 +15,72 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
 {
     public async Task CreatePosterAsync(Title title, CancellationToken ct = default)
     {
-        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}.jpg"), title, isVertical: true, ct);
+        await RenderAsync(
+            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Poster(title.Name)),
+            title, isVertical: true, ct);
     }
 
-    public async Task CreateThumbnailAsync(Title title, CancellationToken ct = default)
+    public async Task CreateThumbAsync(Title title, CancellationToken ct = default)
     {
-        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-fanart-1.jpg"), title, isVertical: false, ct);
+        await RenderAsync(
+            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Thumb(title.Name)),
+            title, isVertical: false, ct);
     }
 
-    public async Task CreateBackgroundAsync(Title title, CancellationToken ct = default)
+    public async Task CreateBackdropAsync(Title title, CancellationToken ct = default)
     {
-        await RenderAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-background.jpg"), title, isVertical: false, ct);
+        await RenderAsync(
+            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Backdrop(title.Name)),
+            title, isVertical: false, ct);
     }
 
     public async Task CreateClearLogoAsync(Title title, CancellationToken ct = default)
     {
-        if (title.Metadata?.WordMarkId is not int wordMarkId)
+        if (await LoadBytesAsync(title.Artwork.WordmarkImageId, ct) is not { Length: > 0 } logoData)
             return;
 
-        var wordMark = await readModel.SingleOrDefault(new EntityByIdSpecification<WordMark, int>(wordMarkId), ct);
-        if (wordMark?.LogoData is not { Length: > 0 } logoData)
+        await File.WriteAllBytesAsync(
+            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.ClearLogo(title.Name)), logoData, ct);
+    }
+
+    /// <summary>
+    /// Headshots go on disk beside the title rather than being served over HTTP. A media server
+    /// scanning the library has no guarantee this application is running, reachable, or even on the
+    /// same host, so the bytes travel with the folder.
+    /// </summary>
+    public async Task CreateActorThumbsAsync(Title title, CancellationToken ct = default)
+    {
+        var members = title.Cast.Where(c => c.HeadshotImageId is not null).ToList();
+
+        if (members.Count == 0)
             return;
 
-        await File.WriteAllBytesAsync(System.IO.Path.Combine(GetFolder(title), $"{title.Name}-clearlogo.png"), logoData, ct);
+        var folder = System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.ActorFolder);
+        Directory.CreateDirectory(folder);
+
+        foreach (var member in members)
+        {
+            if (await LoadBytesAsync(member.HeadshotImageId, ct) is not { Length: > 0 } bytes)
+                continue;
+
+            // ActorThumb is a forward-slashed relative path because that is what goes in the NFO;
+            // only the file name part is needed here.
+            var fileName = System.IO.Path.GetFileName(TitleArtworkFiles.ActorThumb(member));
+            await File.WriteAllBytesAsync(System.IO.Path.Combine(folder, fileName), bytes, ct);
+        }
+    }
+
+    /// <summary>
+    /// Every ingredient is already an image id on the title, so composing artwork is a handful of
+    /// primary-key reads. Nothing here knows what a team, a league or a broadcaster is.
+    /// </summary>
+    private async Task<byte[]?> LoadBytesAsync(int? imageId, CancellationToken ct)
+    {
+        if (imageId is not { } id)
+            return null;
+
+        var image = await readModel.SingleOrDefault(new ImageByIdSpec(id), ct);
+        return image?.Bytes;
     }
 
     private static string GetFolder(Title title) =>
@@ -46,44 +89,36 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
 
     private async Task RenderAsync(string outputPath, Title title, bool isVertical, CancellationToken ct)
     {
-        var meta = title.Metadata;
+        var artwork = title.Artwork;
 
-        var homeAsset = meta?.HomeTeamAssetId is int homeId
-            ? await readModel.SingleOrDefault(new EntityByIdSpecification<TeamAsset, int>(homeId), ct)
-            : null;
-        var awayAsset = meta?.AwayTeamAssetId is int awayId
-            ? await readModel.SingleOrDefault(new EntityByIdSpecification<TeamAsset, int>(awayId), ct)
-            : null;
-        var leagueAsset = meta?.LeagueAssetId is int leagueId
-            ? await readModel.SingleOrDefault(new EntityByIdSpecification<LeagueAsset, int>(leagueId), ct)
-            : null;
-        var streamingAsset = meta?.StreamingServiceAssetId is int streamingId
-            ? await readModel.SingleOrDefault(new EntityByIdSpecification<StreamingServiceAsset, int>(streamingId), ct)
-            : null;
+        var primaryLogo = await LoadBytesAsync(artwork.PrimaryLogoImageId, ct);
+        var secondaryLogo = await LoadBytesAsync(artwork.SecondaryLogoImageId, ct);
+        var badgeLogo = await LoadBytesAsync(artwork.BadgeImageId, ct);
+        var providerLogo = await LoadBytesAsync(artwork.ProviderLogoImageId, ct);
 
         int width = isVertical ? 1000 : 1920;
         int height = isVertical ? 1400 : 1080;
 
-        var color1 = ParseColorOrDefault(homeAsset?.PrimaryColorHex, Rgba32.ParseHex("#222222"));
-        var color2 = ParseColorOrDefault(awayAsset?.PrimaryColorHex, Rgba32.ParseHex("#333333"));
+        var color1 = ParseColorOrDefault(artwork.PrimaryColorHex, Rgba32.ParseHex("#222222"));
+        var color2 = ParseColorOrDefault(artwork.SecondaryColorHex, Rgba32.ParseHex("#333333"));
 
         using var image = new Image<Rgba32>(width, height);
         image.Mutate(ctx => ctx.Fill(Color.Black));
         image.Mutate(ctx => DrawDiagonalSplit(ctx, width, height, isVertical, color1, color2));
 
-        if (homeAsset?.LogoData is { Length: > 0 } homeLogo)
+        if (primaryLogo is { Length: > 0 } homeLogo)
         {
             using var logo1 = await Image.LoadAsync<Rgba32>(new MemoryStream(homeLogo), ct);
             DrawTeamLogo(image, logo1, isVertical, side: 0);
         }
 
-        if (awayAsset?.LogoData is { Length: > 0 } awayLogo)
+        if (secondaryLogo is { Length: > 0 } awayLogo)
         {
             using var logo2 = await Image.LoadAsync<Rgba32>(new MemoryStream(awayLogo), ct);
             DrawTeamLogo(image, logo2, isVertical, side: 1);
         }
 
-        if (leagueAsset?.LogoData is { Length: > 0 } leagueLogo)
+        if (badgeLogo is { Length: > 0 } leagueLogo)
         {
             using var league = await Image.LoadAsync<Rgba32>(new MemoryStream(leagueLogo), ct);
             league.Mutate(x => x.Resize(new ResizeOptions
@@ -94,7 +129,7 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
             image.Mutate(ctx => ctx.DrawImage(league, new Point(isVertical ? 60 : 40, isVertical ? 40 : 40), 1f));
         }
 
-        if (streamingAsset?.LogoData is { Length: > 0 } streamingLogo)
+        if (providerLogo is { Length: > 0 } streamingLogo)
         {
             using var streaming = await Image.LoadAsync<Rgba32>(new MemoryStream(streamingLogo), ct);
             streaming.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(180, 0), Mode = ResizeMode.Max }));

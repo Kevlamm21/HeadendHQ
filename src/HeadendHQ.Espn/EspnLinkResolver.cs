@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 using Microsoft.Playwright;
 
 namespace HeadendHQ.Espn;
@@ -12,7 +11,7 @@ public class EspnLinkResolver : ILinkResolver
         @"""strms"":\[(?:\{[^}]*\},)*?\{[^}]*""id"":""([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public StreamingService Service => StreamingService.Espn;
+    public string BroadcasterSlug => "espn";
 
     public async Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {

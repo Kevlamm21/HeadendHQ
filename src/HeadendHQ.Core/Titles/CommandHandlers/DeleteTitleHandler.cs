@@ -11,6 +11,7 @@ public class DeleteTitleHandler(IWorkspace workspace)
     public async ValueTask<Unit> Handle(DeleteTitleCommand command, CancellationToken ct)
     {
         var title = await workspace.LoadById<Title, Guid>(command.Id, ct);
+        title.MarkDeleted();
         workspace.Remove(title);
         return Unit.Value;
     }

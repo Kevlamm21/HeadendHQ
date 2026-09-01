@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.Peacock;
 
@@ -11,7 +10,7 @@ public class PeacockExtractor(PeacockLinkResolver linkResolver) : IAdbExtractor
         @"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public StreamingService Service => StreamingService.Peacock;
+    public string BroadcasterSlug => "peacock";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

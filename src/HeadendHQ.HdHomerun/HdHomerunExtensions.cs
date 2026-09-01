@@ -1,4 +1,4 @@
-using HeadendHQ.Core;
+using HeadendHQ.Core.Iptv;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,7 +8,7 @@ public static class HdHomerunExtensions
 {
     public static void ConfigureHdHomerun(this WebApplicationBuilder builder)
     {
-        builder.Services.AddHttpClient<IHdHomerunService, HdHomerunService>(client =>
+        builder.Services.AddHttpClient<IIptvService, HdHomerunService>(client =>
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; HeadendHQ/1.0)"));
     }
 }
