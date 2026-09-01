@@ -28,6 +28,20 @@ public class VodCreationService(
             return;
         }
 
+        // TEMP: EventUrl gate disabled until deep link aggregation is working — re-enable then.
+        // if (title.EventUrl is null)
+        // {
+        //     logger.LogInformation("Title {Id} ({Name}) has no EventUrl, skipping VOD production.", title.Id, title.Name);
+        //     return;
+        // }
+
+        var shouldCreateNow = title.StartUtc is null || title.StartUtc.Value.ToLocalTime().Date <= DateTime.Now.Date;
+        if (!shouldCreateNow)
+        {
+            logger.LogInformation("Title {Id} ({Name}) is a future event, skipping production.", title.Id, title.Name);
+            return;
+        }
+
         if (!title.IsVideoCreated)
         {
             var settings = await mediator.Send(new GetVodLauncherSettingsQuery(), ct);
