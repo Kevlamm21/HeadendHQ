@@ -15,7 +15,10 @@ public class CleanupExpiredTitlesHandler(IWorkspace workspace)
         var expired = await workspace.Load(new ExpiredTitlesSpec(cutoff), ct);
 
         foreach (var title in expired)
+        {
+            title.MarkDeleted();
             workspace.Remove(title);
+        }
 
         return Unit.Value;
     }

@@ -23,6 +23,6 @@ public class TitleCreatedHandler(IBackgroundJobClient jobClient, IWorkspace work
         var jobId = jobClient.Schedule<TitleGoesLiveService>(s => s.MarkAsLiveAsync(notification.TitleId, CancellationToken.None), scheduledAt);
 
         var title = await workspace.LoadById<Title, Guid>(notification.TitleId, cancellationToken);
-        title.LiveJobId = jobId;
+        title.SetLiveJobId(jobId);
     }
 }

@@ -56,6 +56,7 @@ nunit-*.xml
 # Visual Studio
 .vs/
 *.user
+*.vscode
 
 # User secrets
 appsettings.secrets.json
@@ -70,3 +71,5 @@ appsettings.secrets.json
 
 #Dev Test Videos
 /TestVideos
+
+Claude.md

@@ -2,6 +2,7 @@ using HeadendHQ.Core.Shared;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
@@ -14,6 +15,13 @@ public static class AspNetExtensions
     {
         builder.Services.Configure<JsonOptions>(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
 
         builder.Services.AddOpenApi();
         builder.Services.AddMemoryCache();
@@ -31,6 +39,7 @@ public static class AspNetExtensions
 
     public static void UseAspNet(this WebApplication app)
     {
+        app.UseForwardedHeaders();
         app.UseExceptionHandler();
         app.UseStaticFiles();
         app.MapOpenApi();

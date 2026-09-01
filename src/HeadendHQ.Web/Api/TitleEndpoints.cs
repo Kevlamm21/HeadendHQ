@@ -62,6 +62,16 @@ public static class TitleEndpoints
         .WithSummary("Delete title")
         .WithDescription("Deletes a title by ID.");
 
+        app.MapDelete("/titles", async (IMediator mediator, CancellationToken ct) =>
+        {
+            var deleted = await mediator.Send(new DeleteAllTitlesCommand(), ct);
+            return Results.Ok(new { deleted });
+        })
+        .WithTags("Titles")
+        .WithName("DeleteAllTitles")
+        .WithSummary("Delete all titles")
+        .WithDescription("Debugging aid. Removes every title so a scrape can be replayed from scratch. Assets, settings and artwork are left alone.");
+
         app.MapGroup("/titles/{id}/images")
             .WithTags("Titles")
             .MapPost("", async (

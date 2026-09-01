@@ -11,7 +11,7 @@ public class VodCleanupService(
 {
     public async Task CleanupExpiredAsync(CancellationToken ct = default)
     {
-        var expired = await workspace.Load(new ExpiredVideoTitlesSpec(DateTime.Now), ct);
+        var expired = await workspace.Load(new ExpiredVideoTitlesSpec(DateTime.UtcNow), ct);
 
         if (expired.Count == 0)
         {
@@ -29,7 +29,7 @@ public class VodCleanupService(
                 if (Directory.Exists(title.VodLauncherPath!))
                     Directory.Delete(title.VodLauncherPath!, recursive: true);
 
-                title.VodLauncherPath = null;
+                title.SetVodLauncherPath(null);
                 deleted++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

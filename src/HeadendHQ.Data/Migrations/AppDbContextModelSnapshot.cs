@@ -17,116 +17,418 @@ namespace HeadendHQ.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
 
-            modelBuilder.Entity("HeadendHQ.Core.Assets.LeagueAsset", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Athlete", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("League")
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ExperienceYears")
                         .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("LogoData")
-                        .HasColumnType("BLOB");
+                    b.Property<string>("Jersey")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Variant")
+                    b.Property<int>("LeagueId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Position")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShortName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TeamId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("Athletes", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Broadcaster", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.PrimitiveCollection<string>("Aliases")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AndroidPackage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CallLetters")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("DetailFetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IptvGuideNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsAffiliate")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsSubscribed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MapsToBroadcasterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShortName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slug")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("League", "Variant")
+                    b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("LeagueAssets", (string)null);
+                    b.ToTable("Broadcasters", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.Assets.StreamingServiceAsset", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.CatalogSyncState", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("LogoData")
-                        .HasColumnType("BLOB");
+                    b.PrimitiveCollection<string>("CompletedLeagueSlugs")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
-                    b.Property<int>("Service")
-                        .HasColumnType("INTEGER");
+                    b.Property<DateTimeOffset?>("InitialDiscoveryCompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("InitialDiscoveryStartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LastBroadcasterRefreshUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Service")
-                        .IsUnique();
-
-                    b.ToTable("StreamingServiceAssets", (string)null);
+                    b.ToTable("CatalogSyncState", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.Assets.TeamAsset", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.League", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("League")
+                    b.Property<string>("Abbreviation")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsFollowed")
                         .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("LogoData")
-                        .HasColumnType("BLOB");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShortName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SportId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SupportsTeams")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("TeamsRefreshedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("SportId");
+
+                    b.ToTable("Leagues", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Sport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Sports", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Team", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Abbreviation")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AlternateColorHex")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsFollowed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LeagueId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LogosVerifiedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nickname")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreferredLogoRel")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PrimaryColorHex")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SecondaryColorHex")
+                    b.Property<DateTimeOffset?>("RosterRefreshedAtUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TeamName")
-                        .IsRequired()
+                    b.Property<string>("ShortDisplayName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slug")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TeamName", "League")
+                    b.HasIndex("LeagueId", "DisplayName")
                         .IsUnique();
 
-                    b.ToTable("TeamAssets", (string)null);
+                    b.ToTable("Teams", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.Assets.WordMark", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Events.SportingEvent", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AwayTeamId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("League")
+                    b.Property<string>("AwayTeamName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("BroadcasterId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("LogoData")
-                        .HasColumnType("BLOB");
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("DetailsFetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("HomeTeamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HomeTeamName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LeagueId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeasonType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SeasonYear")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SeriesSummary")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SeriesType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TitleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Variant")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("VenueName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WatchUrl")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("League", "Variant")
+                    b.HasIndex("StartUtc");
+
+                    b.HasIndex("TitleId");
+
+                    b.HasIndex("SourceKey", "ExternalId")
                         .IsUnique();
 
-                    b.ToTable("WordMarks", (string)null);
+                    b.ToTable("SportingEvents", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.Core.HdHomerun.XmltvCache", b =>
+            modelBuilder.Entity("HeadendHQ.Core.Iptv.IptvChannel", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("XmltvContent")
+                    b.Property<string>("CallSign")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GuideNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastSeenUtc")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("XmltvCache", (string)null);
+                    b.HasIndex("CallSign");
+
+                    b.HasIndex("GuideNumber")
+                        .IsUnique();
+
+                    b.ToTable("IptvChannels", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Iptv.IptvGuideCache", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("IptvGuideCache", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Media.Image", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Origin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sha256")
+                        .IsUnique();
+
+                    b.ToTable("Images", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Settings.GlobalSettings", b =>
@@ -135,8 +437,10 @@ namespace HeadendHQ.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.PrimitiveCollection<string>("EnabledStreamingServices")
-                        .IsRequired()
+                    b.Property<int>("ActorThumbMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PublicBaseUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("TitleRetentionDays")
@@ -145,6 +449,65 @@ namespace HeadendHQ.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("GlobalSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Settings.ScheduleScrapingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxAthletesPerTeam")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(12);
+
+                    b.Property<int>("ScrapeWindowDays")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScheduleScrapingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Settings.SourceSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.PrimitiveCollection<string>("DiscoverySportSlugs")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("JitterMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxConcurrency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxTeamLogoLookupsPerRun")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinDelayMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PerRunRequestBudget")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RequestsPerMinute")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RosterTtlDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserAgent")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SourceSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
@@ -168,9 +531,6 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<string>("EventUrl")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ExternalId")
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
@@ -180,6 +540,9 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<bool>("IsVideoCreated")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("LaunchSlug")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("LiveJobId")
                         .HasColumnType("TEXT");
 
@@ -187,15 +550,8 @@ namespace HeadendHQ.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Provider")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime?>("StartUtc")
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("StreamingService")
-                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
@@ -207,6 +563,8 @@ namespace HeadendHQ.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("StartUtc");
 
                     b.ToTable("Titles", (string)null);
                 });
@@ -226,20 +584,6 @@ namespace HeadendHQ.Data.Migrations
                     b.ToTable("HdHomerunSettings", (string)null);
                 });
 
-            modelBuilder.Entity("HeadendHQ.ScheduleScraping.ScheduleScrapingSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ScrapeWindowDays")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ScheduleScrapingSettings", (string)null);
-                });
-
             modelBuilder.Entity("HeadendHQ.VodLauncher.VodLauncherSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -255,22 +599,581 @@ namespace HeadendHQ.Data.Migrations
                     b.ToTable("VodLauncherSettings", (string)null);
                 });
 
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Athlete", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Catalog.ExternalRef", "ExternalRefs", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("AthleteId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ExternalId")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceKey")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("AthleteId", "SourceKey")
+                                .IsUnique();
+
+                            b1.HasIndex("SourceKey", "ExternalId");
+
+                            b1.ToTable("AthleteExternalRefs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("AthleteId");
+                        });
+
+                    b.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Headshot", b1 =>
+                        {
+                            b1.Property<int>("AthleteId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ETag")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<DateTimeOffset?>("FetchedAtUtc")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("ImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<DateTimeOffset?>("LastModifiedUtc")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceKey")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceUrl")
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("AthleteId");
+
+                            b1.ToTable("Athletes");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AthleteId");
+                        });
+
+                    b.Navigation("ExternalRefs");
+
+                    b.Navigation("Headshot")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Broadcaster", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Catalog.ExternalRef", "ExternalRefs", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("BroadcasterId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ExternalId")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceKey")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("BroadcasterId", "SourceKey")
+                                .IsUnique();
+
+                            b1.HasIndex("SourceKey", "ExternalId");
+
+                            b1.ToTable("BroadcasterExternalRefs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("BroadcasterId");
+                        });
+
+                    b.OwnsMany("HeadendHQ.Core.Catalog.BroadcasterLogo", "Logos", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("BroadcasterId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Variant")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("BroadcasterId", "Variant")
+                                .IsUnique();
+
+                            b1.ToTable("BroadcasterLogos", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("BroadcasterId");
+
+                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
+                                {
+                                    b2.Property<int>("BroadcasterLogoId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<string>("ETag")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<int?>("ImageId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceKey")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceUrl")
+                                        .HasColumnType("TEXT");
+
+                                    b2.HasKey("BroadcasterLogoId");
+
+                                    b2.ToTable("BroadcasterLogos");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("BroadcasterLogoId");
+                                });
+
+                            b1.Navigation("Image")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("ExternalRefs");
+
+                    b.Navigation("Logos");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.League", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Catalog.ExternalRef", "ExternalRefs", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ExternalId")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("LeagueId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("SourceKey")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("LeagueId", "SourceKey")
+                                .IsUnique();
+
+                            b1.HasIndex("SourceKey", "ExternalId");
+
+                            b1.ToTable("LeagueExternalRefs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("LeagueId");
+                        });
+
+                    b.OwnsMany("HeadendHQ.Core.Catalog.LeagueLogo", "Logos", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("LeagueId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Rel")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Variant")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("LeagueId", "Variant", "Rel")
+                                .IsUnique();
+
+                            b1.ToTable("LeagueLogos", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("LeagueId");
+
+                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
+                                {
+                                    b2.Property<int>("LeagueLogoId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<string>("ETag")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<int?>("ImageId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceKey")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceUrl")
+                                        .HasColumnType("TEXT");
+
+                                    b2.HasKey("LeagueLogoId");
+
+                                    b2.ToTable("LeagueLogos");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("LeagueLogoId");
+                                });
+
+                            b1.Navigation("Image")
+                                .IsRequired();
+                        });
+
+                    b.OwnsMany("HeadendHQ.Core.Catalog.LeagueWordmark", "Wordmarks", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("LeagueId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Variant")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("LeagueId", "Variant")
+                                .IsUnique();
+
+                            b1.ToTable("LeagueWordmarks", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("LeagueId");
+
+                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
+                                {
+                                    b2.Property<int>("LeagueWordmarkId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<string>("ETag")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<int?>("ImageId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceKey")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceUrl")
+                                        .HasColumnType("TEXT");
+
+                                    b2.HasKey("LeagueWordmarkId");
+
+                                    b2.ToTable("LeagueWordmarks");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("LeagueWordmarkId");
+                                });
+
+                            b1.Navigation("Image")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("ExternalRefs");
+
+                    b.Navigation("Logos");
+
+                    b.Navigation("Wordmarks");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Sport", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Catalog.ExternalRef", "ExternalRefs", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ExternalId")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceKey")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("SportId")
+                                .HasColumnType("INTEGER");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("SourceKey", "ExternalId");
+
+                            b1.HasIndex("SportId", "SourceKey")
+                                .IsUnique();
+
+                            b1.ToTable("SportExternalRefs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("SportId");
+                        });
+
+                    b.Navigation("ExternalRefs");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Catalog.Team", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Catalog.ExternalRef", "ExternalRefs", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("ExternalId")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("SourceKey")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("TeamId")
+                                .HasColumnType("INTEGER");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("SourceKey", "ExternalId");
+
+                            b1.HasIndex("TeamId", "SourceKey")
+                                .IsUnique();
+
+                            b1.ToTable("TeamExternalRefs", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("TeamId");
+                        });
+
+                    b.OwnsMany("HeadendHQ.Core.Catalog.TeamLogo", "Logos", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Rel")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("TeamId")
+                                .HasColumnType("INTEGER");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("TeamId", "Rel")
+                                .IsUnique();
+
+                            b1.ToTable("TeamLogos", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("TeamId");
+
+                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
+                                {
+                                    b2.Property<int>("TeamLogoId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<string>("ETag")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<int?>("ImageId")
+                                        .HasColumnType("INTEGER");
+
+                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceKey")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                                        .HasColumnType("TEXT");
+
+                                    b2.Property<string>("SourceUrl")
+                                        .HasColumnType("TEXT");
+
+                                    b2.HasKey("TeamLogoId");
+
+                                    b2.ToTable("TeamLogos");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("TeamLogoId");
+                                });
+
+                            b1.Navigation("Image")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("ExternalRefs");
+
+                    b.Navigation("Logos");
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Events.SportingEvent", b =>
+                {
+                    b.OwnsMany("HeadendHQ.Core.Events.SportingEventCastMember", "Cast", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("AthleteId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("Order")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<Guid>("SportingEventId")
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("SportingEventId", "AthleteId")
+                                .IsUnique();
+
+                            b1.ToTable("SportingEventCast", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("SportingEventId");
+                        });
+
+                    b.Navigation("Cast");
+                });
+
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
                 {
+                    b.OwnsOne("HeadendHQ.Core.Titles.TitleArtwork", "Artwork", b1 =>
+                        {
+                            b1.Property<Guid>("TitleId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("BadgeImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("PrimaryColorHex")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("PrimaryLogoImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int?>("ProviderLogoImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("SecondaryColorHex")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int?>("SecondaryLogoImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int?>("WordmarkImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.HasKey("TitleId");
+
+                            b1.ToTable("Titles");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TitleId");
+                        });
+
+                    b.OwnsMany("HeadendHQ.Core.Titles.TitleCastMember", "Cast", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int?>("HeadshotImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("Order")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Role")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<Guid>("TitleId")
+                                .HasColumnType("TEXT");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("TitleId", "Order");
+
+                            b1.ToTable("TitleCast", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("TitleId");
+                        });
+
                     b.OwnsOne("HeadendHQ.Core.Titles.TitleMetadata", "Metadata", b1 =>
                         {
                             b1.Property<Guid>("TitleId");
-
-                            b1.Property<int?>("AwayTeamAssetId");
 
                             b1.Property<string>("ContentRating");
 
                             b1.PrimitiveCollection<string>("Genres")
                                 .IsRequired();
-
-                            b1.Property<int?>("HomeTeamAssetId");
-
-                            b1.Property<int?>("LeagueAssetId");
 
                             b1.Property<string>("Plot");
 
@@ -279,15 +1182,13 @@ namespace HeadendHQ.Data.Migrations
                             b1.PrimitiveCollection<string>("Sets")
                                 .IsRequired();
 
-                            b1.Property<int?>("StreamingServiceAssetId");
-
                             b1.Property<string>("Studio");
 
                             b1.Property<string>("Tagline");
 
                             b1.Property<string>("UniqueId");
 
-                            b1.Property<int?>("WordMarkId");
+                            b1.Property<string>("VenueName");
 
                             b1.Property<int?>("Year");
 
@@ -302,6 +1203,11 @@ namespace HeadendHQ.Data.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("TitleId");
                         });
+
+                    b.Navigation("Artwork")
+                        .IsRequired();
+
+                    b.Navigation("Cast");
 
                     b.Navigation("Metadata");
                 });

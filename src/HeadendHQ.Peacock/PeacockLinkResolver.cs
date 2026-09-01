@@ -1,12 +1,11 @@
 using HeadendHQ.Core;
-using HeadendHQ.Core.Titles;
 using Microsoft.Playwright;
 
 namespace HeadendHQ.Peacock;
 
 public class PeacockLinkResolver : ILinkResolver
 {
-    public StreamingService Service => StreamingService.Peacock;
+    public string BroadcasterSlug => "peacock";
 
     public async Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {

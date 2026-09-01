@@ -13,7 +13,8 @@ public class CreateTitleHandler(IWorkspace workspace)
     {
         var request = command.Request;
 
-        var existing = await FindExistingAsync(request, ct);
+        var existing = (await workspace.Load(new TitleByNameStartSpec(request.Name, request.StartUtc), ct))
+            .FirstOrDefault();
 
         if (existing is not null)
         {
@@ -21,11 +22,13 @@ public class CreateTitleHandler(IWorkspace workspace)
             {
                 Name = request.Name,
                 Type = request.Type,
-                StreamingService = request.StreamingService,
+                LaunchSlug = request.LaunchSlug,
                 EventUrl = request.EventUrl,
                 StartUtc = request.StartUtc,
                 EndUtc = request.EndUtc ?? request.StartUtc?.AddHours(3),
                 Metadata = request.Metadata,
+                Artwork = request.Artwork,
+                Cast = request.Cast,
             });
             return existing;
         }
@@ -33,19 +36,5 @@ public class CreateTitleHandler(IWorkspace workspace)
         var title = new Title(request);
         workspace.Add(title);
         return title;
-    }
-
-    private async Task<Title?> FindExistingAsync(TitleRequest request, CancellationToken ct)
-    {
-        if (!string.IsNullOrEmpty(request.ExternalId))
-        {
-            var results = await workspace.Load(
-                new TitleByProviderExternalIdSpec(request.Provider, request.ExternalId), ct);
-            return results.FirstOrDefault();
-        }
-
-        var byName = await workspace.Load(
-            new TitleByProviderNameStartSpec(request.Provider, request.Name, request.StartUtc), ct);
-        return byName.FirstOrDefault();
     }
 }

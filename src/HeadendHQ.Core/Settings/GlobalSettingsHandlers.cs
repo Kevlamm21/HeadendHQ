@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Shared;
-using HeadendHQ.Core.Titles;
 using Mediator;
 
 namespace HeadendHQ.Core.Settings;
@@ -22,8 +21,9 @@ public class GetGlobalSettingsHandler(IReadModel readModel)
 }
 
 public record UpdateGlobalSettingsCommand(
-    List<StreamingService>? EnabledStreamingServices,
-    int? TitleRetentionDays) : ICommand<GlobalSettings>;
+    int? TitleRetentionDays,
+    string? PublicBaseUrl,
+    ActorThumbMode? ActorThumbMode = null) : ICommand<GlobalSettings>;
 
 public class UpdateGlobalSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateGlobalSettingsCommand, GlobalSettings>
@@ -33,7 +33,7 @@ public class UpdateGlobalSettingsHandler(IWorkspace workspace)
         var settings = await workspace.LoadSingleOrDefault(new GlobalSettingsSpec(), ct)
             ?? throw new InvalidOperationException("GlobalSettings not found.");
 
-        settings.Configure(command.EnabledStreamingServices, command.TitleRetentionDays);
+        settings.Configure(command.TitleRetentionDays, command.PublicBaseUrl, command.ActorThumbMode);
         return settings;
     }
 }

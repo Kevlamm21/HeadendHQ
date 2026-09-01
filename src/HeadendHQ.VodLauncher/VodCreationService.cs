@@ -20,12 +20,11 @@ public class VodCreationService(
 
     public async Task CreateForTitleAsync(Guid titleId, CancellationToken ct = default)
     {
-        var title = await workspace.LoadById<Title, Guid>(titleId, ct);
+        var title = await workspace.LoadSingleOrDefault(new EntityByIdSpecification<Title, Guid>(titleId), ct);
 
-        var shouldCreateNow = title.StartUtc is null || title.StartUtc.Value.ToLocalTime().Date <= DateTime.Now.Date;
-        if (!shouldCreateNow)
+        if (title is null)
         {
-            logger.LogInformation("Title {Id} ({Name}) is a future event, skipping production.", title.Id, title.Name);
+            logger.LogWarning("Title {Id} no longer exists. Skipping VOD production.", titleId);
             return;
         }
 
@@ -44,8 +43,8 @@ public class VodCreationService(
                 return;
             }
 
-            title.VodLauncherPath = await CreateVideoAsync(title, libraryPath, ct);
-            title.IsVideoCreated = true;
+            title.SetVodLauncherPath(await CreateVideoAsync(title, libraryPath, ct));
+            title.MarkVideoCreated(true);
         }
 
         if (!title.ArtworkCreated && title.Type == TitleType.SportingEvent)
@@ -53,10 +52,11 @@ public class VodCreationService(
             try
             {
                 await imageCreation.CreatePosterAsync(title, ct);
-                await imageCreation.CreateThumbnailAsync(title, ct);
-                await imageCreation.CreateBackgroundAsync(title, ct);
+                await imageCreation.CreateThumbAsync(title, ct);
+                await imageCreation.CreateBackdropAsync(title, ct);
                 await imageCreation.CreateClearLogoAsync(title, ct);
-                title.ArtworkCreated = true;
+                await imageCreation.CreateActorThumbsAsync(title, ct);
+                title.MarkArtworkCreated();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

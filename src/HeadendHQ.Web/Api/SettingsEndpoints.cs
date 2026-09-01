@@ -1,7 +1,6 @@
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Titles;
-using HeadendHQ.ScheduleScraping;
-using HeadendHQ.ScheduleScraping.Settings;
+
 using HeadendHQ.VodLauncher;
 using HeadendHQ.VodLauncher.Settings;
 using HeadendHQ.HdHomerun;
@@ -47,6 +46,24 @@ public static class SettingsEndpoints
             .WithSummary("Update schedule scraping settings")
             .WithDescription("Partially updates schedule scraping settings. Only non-null fields are applied.");
 
+        // What used to be "sport preferences" is now follow state on the catalog itself:
+        // PATCH /catalog/leagues/{id} and PATCH /catalog/teams/{id}.
+
+        group.MapGet("/source", async (IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new GetSourceSettingsQuery(), ct)))
+            .WithName("GetSourceSettings")
+            .WithSummary("Get source settings")
+            .WithDescription("How politely we talk to upstream sources: request rate, spacing, jitter, concurrency, per-run budget, user agent, and roster cache TTL.");
+
+        group.MapPatch("/source", async (
+            [FromBody] UpdateSourceSettingsCommand command,
+            IMediator mediator,
+            CancellationToken ct) =>
+            Results.Ok(await mediator.Send(command, ct)))
+            .WithName("UpdateSourceSettings")
+            .WithSummary("Update source settings")
+            .WithDescription("Partially updates source settings. Only non-null fields are applied.");
+
         group.MapGet("/vod-launcher", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetVodLauncherSettingsQuery(), ct)))
             .WithName("GetVodLauncherSettings")
@@ -62,20 +79,20 @@ public static class SettingsEndpoints
             .WithSummary("Update VOD launcher settings")
             .WithDescription("Partially updates VOD launcher settings. Only non-null fields are applied.");
 
-        group.MapGet("/hdhomerun", async (IMediator mediator, CancellationToken ct) =>
+        group.MapGet("/iptv", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetHdHomerunSettingsQuery(), ct)))
-            .WithName("GetHdHomerunSettings")
-            .WithSummary("Get HDHomeRun settings")
-            .WithDescription("Returns HDHomeRun settings including the device URL used for XMLTV EPG fetching.");
+            .WithName("GetIptvSettings")
+            .WithSummary("Get IPTV device settings")
+            .WithDescription("Returns the IPTV device settings, including the discover.json URL used for the guide and lineup.");
 
-        group.MapPatch("/hdhomerun", async (
+        group.MapPatch("/iptv", async (
             [FromBody] UpdateHdHomerunSettingsCommand command,
             IMediator mediator,
             CancellationToken ct) =>
             Results.Ok(await mediator.Send(command, ct)))
-            .WithName("UpdateHdHomerunSettings")
-            .WithSummary("Update HDHomeRun settings")
-            .WithDescription("Partially updates HDHomeRun settings. Only non-null fields are applied.");
+            .WithName("UpdateIptvSettings")
+            .WithSummary("Update IPTV device settings")
+            .WithDescription("Partially updates the IPTV device settings. Only non-null fields are applied.");
 
         return app;
     }

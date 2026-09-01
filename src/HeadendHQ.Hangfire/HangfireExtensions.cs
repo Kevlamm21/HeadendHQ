@@ -2,6 +2,7 @@ using Hangfire;
 using Hangfire.AspNetCore;
 using Hangfire.InMemory;
 using Hangfire.Server;
+using HeadendHQ.Core.Events;
 using HeadendHQ.Core.Shared;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,9 @@ public static class HangfireExtensions
 
         builder.Services.AddSingleton<JobActivator, UnitOfWorkActivator>();
         builder.Services.AddHangfireServer();
+
+        builder.Services.AddScoped<IEventDetailQueue, EventDetailQueue>();
+        builder.Services.AddScoped<EventDetailJob>();
     }
 
     public static void UseHangfireDashboard(this WebApplication app)

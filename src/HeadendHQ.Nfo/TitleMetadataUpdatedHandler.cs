@@ -9,14 +9,17 @@ public class TitleMetadataUpdatedHandler(IBackgroundJobClient jobClient, IWorksp
 {
     public async ValueTask Handle(TitleMetadataUpdated notification, CancellationToken cancellationToken)
     {
-        jobClient.Enqueue<NfoWriter>(w => w.WriteForTitleAsync(notification.TitleId, CancellationToken.None));
-
         var title = await workspace.LoadById<Title, Guid>(notification.TitleId, cancellationToken);
+
+        // Future titles have no VOD folder yet. Their NFO is written by VodCreationService
+        // once the folder exists on game day, so enqueueing a write here would only fail.
+        if (title.VodLauncherPath is not null)
+            jobClient.Enqueue<NfoWriter>(w => w.WriteForTitleAsync(notification.TitleId, CancellationToken.None));
 
         if (title.LiveJobId is not null)
         {
             jobClient.Delete(title.LiveJobId);
-            title.LiveJobId = null;
+            title.SetLiveJobId(null);
         }
 
         if (title.StartUtc is not { } startUtc)
@@ -30,6 +33,6 @@ public class TitleMetadataUpdatedHandler(IBackgroundJobClient jobClient, IWorksp
         if (scheduledAt <= DateTimeOffset.UtcNow)
             return;
 
-        title.LiveJobId = jobClient.Schedule<TitleGoesLiveService>(s => s.MarkAsLiveAsync(notification.TitleId, CancellationToken.None), scheduledAt);
+        title.SetLiveJobId(jobClient.Schedule<TitleGoesLiveService>(s => s.MarkAsLiveAsync(notification.TitleId, CancellationToken.None), scheduledAt));
     }
 }
