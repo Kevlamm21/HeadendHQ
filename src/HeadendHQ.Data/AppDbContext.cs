@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         modelBuilder.ApplyConfiguration(new IptvGuideCacheConfiguration());
         modelBuilder.ApplyConfiguration(new IptvChannelConfiguration());
+        modelBuilder.ApplyConfiguration(new IptvProgrammeConfiguration());
         modelBuilder.ApplyConfiguration(new TitleConfiguration());
         modelBuilder.ApplyConfiguration(new GlobalSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new ScheduleScrapingSettingsConfiguration());

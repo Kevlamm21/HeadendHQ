@@ -50,6 +50,18 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "IPTV lineup refresh failed.");
         }
 
+        // After the lineup, not before: a guide entry is only kept if its channel resolves to
+        // something tunable, and the lineup is what says which those are.
+        try
+        {
+            var parsed = await mediator.Send(new ParseIptvGuideCommand(), ct);
+            logger.LogInformation("Parsed {Count} programme-guide entry/entries.", parsed);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Programme-guide parsing failed.");
+        }
+
         // Ahead of the scrape: events are created against team colours and logo URLs, so those
         // should be current before any event references them.
         try

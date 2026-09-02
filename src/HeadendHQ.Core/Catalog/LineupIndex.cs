@@ -9,15 +9,23 @@ namespace HeadendHQ.Core.Catalog;
 public sealed class LineupIndex
 {
     private readonly Dictionary<string, string> _guideByCallSign;
+    private readonly HashSet<string> _guideNumbers;
 
-    private LineupIndex(Dictionary<string, string> guideByCallSign) => _guideByCallSign = guideByCallSign;
+    private LineupIndex(Dictionary<string, string> guideByCallSign, HashSet<string> guideNumbers)
+    {
+        _guideByCallSign = guideByCallSign;
+        _guideNumbers = guideNumbers;
+    }
 
     public static LineupIndex Build(IEnumerable<IptvChannel> channels)
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var numbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var channel in channels)
         {
+            numbers.Add(channel.GuideNumber);
+
             if (CallSign.Normalize(channel.CallSign) is not { } call)
                 continue;
 
@@ -25,7 +33,7 @@ public sealed class LineupIndex
                 map[call] = channel.GuideNumber;
         }
 
-        return new LineupIndex(map);
+        return new LineupIndex(map, numbers);
     }
 
     /// <summary>The guide number for a call sign, or <c>null</c> when the lineup has no such channel.</summary>
@@ -33,6 +41,10 @@ public sealed class LineupIndex
         CallSign.Normalize(callSign) is { } call && _guideByCallSign.TryGetValue(call, out var guide)
             ? guide
             : null;
+
+    /// <summary>Whether this exact guide number is tunable. Lets a caller trust a number it was handed.</summary>
+    public bool HasGuideNumber(string? guideNumber) =>
+        guideNumber is { Length: > 0 } && _guideNumbers.Contains(guideNumber);
 
     /// <summary>Numeric compare of dotted guide numbers, so "19.2" &lt; "19.10" and "2.1" &lt; "19.1".</summary>
     private static bool LessThan(string a, string b)
