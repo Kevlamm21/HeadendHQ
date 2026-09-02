@@ -13,10 +13,4 @@ public interface IImageCreationService
     Task CreateBackdropAsync(Title title, CancellationToken ct = default);
 
     Task CreateClearLogoAsync(Title title, CancellationToken ct = default);
-
-    /// <summary>
-    /// Writes each billed cast member's headshot into the title folder, so the NFO can point at a
-    /// file rather than depending on this application being reachable when the library is scanned.
-    /// </summary>
-    Task CreateActorThumbsAsync(Title title, CancellationToken ct = default);
 }

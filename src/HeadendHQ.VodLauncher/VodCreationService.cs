@@ -69,7 +69,6 @@ public class VodCreationService(
                 await imageCreation.CreateThumbAsync(title, ct);
                 await imageCreation.CreateBackdropAsync(title, ct);
                 await imageCreation.CreateClearLogoAsync(title, ct);
-                await imageCreation.CreateActorThumbsAsync(title, ct);
                 title.MarkArtworkCreated();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

@@ -22,8 +22,7 @@ public class GetGlobalSettingsHandler(IReadModel readModel)
 
 public record UpdateGlobalSettingsCommand(
     int? TitleRetentionDays,
-    string? PublicBaseUrl,
-    ActorThumbMode? ActorThumbMode = null) : ICommand<GlobalSettings>;
+    string? PublicBaseUrl) : ICommand<GlobalSettings>;
 
 public class UpdateGlobalSettingsHandler(IWorkspace workspace)
     : ICommandHandler<UpdateGlobalSettingsCommand, GlobalSettings>
@@ -33,7 +32,7 @@ public class UpdateGlobalSettingsHandler(IWorkspace workspace)
         var settings = await workspace.LoadSingleOrDefault(new GlobalSettingsSpec(), ct)
             ?? throw new InvalidOperationException("GlobalSettings not found.");
 
-        settings.Configure(command.TitleRetentionDays, command.PublicBaseUrl, command.ActorThumbMode);
+        settings.Configure(command.TitleRetentionDays, command.PublicBaseUrl);
         return settings;
     }
 }

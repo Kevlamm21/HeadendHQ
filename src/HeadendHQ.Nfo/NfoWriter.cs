@@ -26,14 +26,13 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         var cast = title.Cast.OrderBy(c => c.Order).ToList();
 
         var globalSettings = await readModel.SingleOrDefault(new GlobalSettingsSpec(), ct);
-        var thumbMode = globalSettings?.ActorThumbMode ?? ActorThumbMode.LocalFile;
 
-        if (cast.Count > 0 && thumbMode is ActorThumbMode.Url && string.IsNullOrEmpty(globalSettings?.PublicBaseUrl))
+        if (cast.Count > 0 && string.IsNullOrEmpty(globalSettings?.PublicBaseUrl))
             logger.LogWarning(
                 "PublicBaseUrl is not set; omitting {Count} headshot thumb(s) from the NFO for title {Id} ({Name}).",
                 cast.Count, title.Id, title.Name);
 
-        var doc = BuildDocument(title, cast, thumbMode, globalSettings?.PublicBaseUrl);
+        var doc = BuildDocument(title, cast, globalSettings?.PublicBaseUrl);
 
         await using var stream = new FileStream(nfoPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true);
         var settings = new XmlWriterSettings { Indent = true, Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), Async = true };
@@ -62,7 +61,7 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
     /// interchangeable with Kodi's or Plex's.
     /// </summary>
     private static XDocument BuildDocument(
-        Title title, List<TitleCastMember> cast, ActorThumbMode thumbMode, string? publicBaseUrl)
+        Title title, List<TitleCastMember> cast, string? publicBaseUrl)
     {
         var meta = title.Metadata;
         var name = title.Name;
@@ -88,13 +87,10 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         foreach (var genre in meta?.Genres ?? [])
             movie.Add(new XElement("genre", genre));
 
-        // A movie has exactly one collection: Jellyfin's parser assigns CollectionName, so a second
-        // <set> silently replaces the first. Anything else that wants to be a label is a tag.
-        if ((meta?.Sets ?? []).FirstOrDefault() is { } collection)
-            movie.Add(new XElement("set", new XElement("name", collection)));
-
-        foreach (var extra in (meta?.Sets ?? []).Skip(1))
-            movie.Add(new XElement("tag", extra));
+        // Every set is written as a tag; smart-collection logic on the client turns the tags it
+        // cares about into collections. Jellyfin's <set> is deliberately not written here.
+        foreach (var set in meta?.Sets ?? [])
+            movie.Add(new XElement("tag", set));
 
         if (title.IsLive)
             movie.Add(new XElement("tag", "Live"));
@@ -124,7 +120,7 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
 
             actor.Add(new XElement("order", order));
 
-            if (ActorThumb(member, thumbMode, publicBaseUrl) is { } thumb)
+            if (ActorThumb(member, publicBaseUrl) is { } thumb)
                 actor.Add(new XElement("thumb", thumb));
 
             movie.Add(actor);
@@ -133,14 +129,12 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), movie);
     }
 
-    private static string? ActorThumb(TitleCastMember member, ActorThumbMode mode, string? publicBaseUrl)
+    private static string? ActorThumb(TitleCastMember member, string? publicBaseUrl)
     {
-        if (member.HeadshotImageId is not { } imageId)
+        if (member.HeadshotImageId is not { } imageId || string.IsNullOrEmpty(publicBaseUrl))
             return null;
 
-        return mode is ActorThumbMode.LocalFile
-            ? TitleArtworkFiles.ActorThumb(member)
-            : string.IsNullOrEmpty(publicBaseUrl) ? null : $"{publicBaseUrl}/media/images/{imageId}";
+        return $"{publicBaseUrl}/media/images/{imageId}";
     }
 
     private static string? Tagline(TitleMetadata? meta)

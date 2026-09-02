@@ -11,24 +11,27 @@ public class EfUnitOfWork<TContext>(TContext context, IMediator mediator) : IUni
     {
         var strategy = context.Database.CreateExecutionStrategy();
 
-        // Collected before the save but published only after the commit. Both halves matter: a
-        // handler that dispatches out-of-process work (Hangfire) must not race ahead of the insert,
-        // and a deleted entity leaves the change tracker the moment its delete is written — so
-        // reading the tracker afterwards silently dropped every event a removal had raised.
+        // The event sources are captured before the save — a deleted entity leaves the change
+        // tracker the moment its delete is written, so reading the tracker afterwards silently
+        // dropped every event a removal had raised. But the events are only *drained* (which clears
+        // them from the entity) after the commit succeeds: if the save throws, the entity stays
+        // tracked with its events intact, and a retry — or a later SaveChanges on the same context,
+        // as the nightly job does after catching a per-item failure — still publishes them instead
+        // of persisting the row silently. Publishing only after the commit also keeps a handler that
+        // dispatches out-of-process work (Hangfire) from racing ahead of the insert.
         var events = await strategy.ExecuteAsync(async () =>
         {
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-            var pending = context.ChangeTracker.Entries<IEventSource>()
+            var sources = context.ChangeTracker.Entries<IEventSource>()
                 .Select(e => e.Entity)
-                .SelectMany(e => e.PublishEvents())
                 .ToArray();
 
             await context.SaveChangesAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
-            return pending;
+            return sources.SelectMany(e => e.PublishEvents()).ToArray();
         });
 
         if (events.Length == 0)

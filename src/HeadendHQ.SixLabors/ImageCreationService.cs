@@ -44,33 +44,6 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
     }
 
     /// <summary>
-    /// Headshots go on disk beside the title rather than being served over HTTP. A media server
-    /// scanning the library has no guarantee this application is running, reachable, or even on the
-    /// same host, so the bytes travel with the folder.
-    /// </summary>
-    public async Task CreateActorThumbsAsync(Title title, CancellationToken ct = default)
-    {
-        var members = title.Cast.Where(c => c.HeadshotImageId is not null).ToList();
-
-        if (members.Count == 0)
-            return;
-
-        var folder = System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.ActorFolder);
-        Directory.CreateDirectory(folder);
-
-        foreach (var member in members)
-        {
-            if (await LoadBytesAsync(member.HeadshotImageId, ct) is not { Length: > 0 } bytes)
-                continue;
-
-            // ActorThumb is a forward-slashed relative path because that is what goes in the NFO;
-            // only the file name part is needed here.
-            var fileName = System.IO.Path.GetFileName(TitleArtworkFiles.ActorThumb(member));
-            await File.WriteAllBytesAsync(System.IO.Path.Combine(folder, fileName), bytes, ct);
-        }
-    }
-
-    /// <summary>
     /// Every ingredient is already an image id on the title, so composing artwork is a handful of
     /// primary-key reads. Nothing here knows what a team, a league or a broadcaster is.
     /// </summary>

@@ -24,25 +24,4 @@ public static class TitleArtworkFiles
 
     /// <summary>Transparent wordmark. Jellyfin: Logo.</summary>
     public static string ClearLogo(string titleName) => $"{titleName}-clearlogo.png";
-
-    /// <summary>
-    /// Where cast headshots are written. The leading dot keeps Jellyfin's media scanner out of it —
-    /// these are referenced explicitly from the NFO and must not be mistaken for extra content.
-    /// </summary>
-    public const string ActorFolder = ".actors";
-
-    /// <summary>
-    /// A headshot's path relative to the title folder, which is what the NFO records. Built from the
-    /// billing order as well as the name so two people who sanitize to the same string cannot
-    /// collide.
-    /// </summary>
-    public static string ActorThumb(TitleCastMember member) =>
-        $"{ActorFolder}/{member.Order:D2}-{Sanitize(member.Name)}.jpg";
-
-    private static string Sanitize(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var cleaned = new string([.. name.Select(c => invalid.Contains(c) ? '_' : c)]).Trim();
-        return cleaned.Length == 0 ? "actor" : cleaned;
-    }
 }
