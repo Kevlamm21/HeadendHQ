@@ -24,20 +24,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HeadendHQ.AmazonPrime\HeadendHQ.AmazonPrime.csproj" />
     <ProjectReference Include="..\HeadendHQ.AspNet\HeadendHQ.AspNet.csproj" />
-    <ProjectReference Include="..\HeadendHQ.Espn\HeadendHQ.Espn.csproj" />
-    <ProjectReference Include="..\HeadendHQ.Peacock\HeadendHQ.Peacock.csproj" />
     <ProjectReference Include="..\HeadendHQ.Core\HeadendHQ.Core.csproj" />
     <ProjectReference Include="..\HeadendHQ.Data\HeadendHQ.Data.csproj" />
     <ProjectReference Include="..\HeadendHQ.FFmpeg\HeadendHQ.FFmpeg.csproj" />
     <ProjectReference Include="..\HeadendHQ.VodLauncher\HeadendHQ.VodLauncher.csproj" />
     <ProjectReference Include="..\HeadendHQ.HdHomerun\HeadendHQ.HdHomerun.csproj" />
-    <ProjectReference Include="..\HeadendHQ.Nba\HeadendHQ.Nba.csproj" />
     <ProjectReference Include="..\HeadendHQ.Nfo\HeadendHQ.Nfo.csproj" />
     <ProjectReference Include="..\HeadendHQ.Hangfire\HeadendHQ.Hangfire.csproj" />
     <ProjectReference Include="..\HeadendHQ.Mediator\HeadendHQ.Mediator.csproj" />
     <ProjectReference Include="..\HeadendHQ.SixLabors\HeadendHQ.SixLabors.csproj" />
+    <ProjectReference Include="..\HeadendHQ.WebScraping\HeadendHQ.WebScraping.csproj" />
   </ItemGroup>
 
 </Project>

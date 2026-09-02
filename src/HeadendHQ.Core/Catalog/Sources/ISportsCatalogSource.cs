@@ -2,7 +2,7 @@ namespace HeadendHQ.Core.Catalog.Sources;
 
 /// <summary>
 /// Supplies the reference data behind sports, leagues, teams and rosters. Implemented by
-/// <c>HeadendHQ.Espn</c> today; the interface exists so that stays an implementation detail.
+/// <c>HeadendHQ.WebScraping.Espn</c> today; the interface exists so that stays an implementation detail.
 /// </summary>
 public interface ISportsCatalogSource
 {

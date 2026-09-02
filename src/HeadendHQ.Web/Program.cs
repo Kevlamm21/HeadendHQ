@@ -1,18 +1,15 @@
-using HeadendHQ.AmazonPrime;
 using HeadendHQ.AspNet;
 using HeadendHQ.Data;
-using HeadendHQ.Espn;
 using HeadendHQ.FFmpeg;
 using HeadendHQ.Hangfire;
 using HeadendHQ.HdHomerun;
 using HeadendHQ.Mediator;
-using HeadendHQ.Nba;
 using HeadendHQ.Nfo;
-using HeadendHQ.Peacock;
 using HeadendHQ.SixLabors;
 using HeadendHQ.VodLauncher;
 using HeadendHQ.Web;
 using HeadendHQ.Web.Infrastructure;
+using HeadendHQ.WebScraping;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,11 +24,8 @@ var dbPath = builder.Configuration["Database:Path"] ?? "/data/headendhq.db";
 builder.ConfigureDatabase(dbPath);
 
 builder.ConfigureHdHomerun();
-builder.ConfigureNba();
 builder.ConfigureNfo();
-builder.ConfigureEspn();
-builder.ConfigurePeacock();
-builder.ConfigureAmazonPrime();
+builder.ConfigureWebScraping();
 builder.ConfigureVodLauncher();
 builder.ConfigureFFmpeg();
 builder.ConfigureSixLabors();
