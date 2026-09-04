@@ -15,7 +15,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.ApplyConfiguration(new VodLauncherSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new HdHomerunSettingsConfiguration());
 
-        modelBuilder.ApplyConfiguration(new SourceSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new ImageConfiguration());
         modelBuilder.ApplyConfiguration(new SportConfiguration());
         modelBuilder.ApplyConfiguration(new LeagueConfiguration());

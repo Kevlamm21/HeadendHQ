@@ -1,6 +1,5 @@
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Settings;
-using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
@@ -20,35 +19,28 @@ public class EspnThrottledException(string message) : CatalogSourceThrottledExce
 /// run, one API call — and a runaway loop is bounded rather than unbounded.
 /// </para>
 /// </summary>
-internal sealed class EspnRequestGate(IMediator mediator, ILogger<EspnRequestGate> logger) : IDisposable
+internal sealed class EspnRequestGate(ILogger<EspnRequestGate> logger) : IDisposable
 {
-    private readonly SemaphoreSlim _init = new(1, 1);
+    private readonly SemaphoreSlim _concurrency = new(Math.Max(1, SourceSettings.MaxConcurrency));
     private readonly Lock _pacing = new();
     private readonly Queue<DateTimeOffset> _recent = new();
 
-    private SourceSettings? _settings;
-    private SemaphoreSlim? _concurrency;
     private DateTimeOffset _nextAllowed = DateTimeOffset.MinValue;
     private int _used;
 
     public int RequestsUsed => Volatile.Read(ref _used);
 
-    /// <summary>The pacing settings, loaded once per scope. Also carries the User-Agent to send.</summary>
-    public Task<SourceSettings> GetSettingsAsync(CancellationToken ct) => EnsureSettingsAsync(ct);
-
     /// <summary>Waits until it is polite to send, then runs <paramref name="send"/>.</summary>
     public async Task<T> RunAsync<T>(Func<CancellationToken, Task<T>> send, CancellationToken ct)
     {
-        var settings = await EnsureSettingsAsync(ct);
-
-        if (Interlocked.Increment(ref _used) > settings.PerRunRequestBudget)
+        if (Interlocked.Increment(ref _used) > SourceSettings.PerRunRequestBudget)
             throw new EspnThrottledException(
-                $"Request budget of {settings.PerRunRequestBudget} exhausted; stopping this run.");
+                $"Request budget of {SourceSettings.PerRunRequestBudget} exhausted; stopping this run.");
 
-        await _concurrency!.WaitAsync(ct);
+        await _concurrency.WaitAsync(ct);
         try
         {
-            await WaitForSlotAsync(settings, ct);
+            await WaitForSlotAsync(ct);
             return await send(ct);
         }
         finally
@@ -57,33 +49,11 @@ internal sealed class EspnRequestGate(IMediator mediator, ILogger<EspnRequestGat
         }
     }
 
-    private async Task<SourceSettings> EnsureSettingsAsync(CancellationToken ct)
-    {
-        if (_settings is not null)
-            return _settings;
-
-        await _init.WaitAsync(ct);
-        try
-        {
-            if (_settings is null)
-            {
-                _settings = await mediator.Send(new GetSourceSettingsQuery(), ct);
-                _concurrency = new SemaphoreSlim(Math.Max(1, _settings.MaxConcurrency));
-            }
-        }
-        finally
-        {
-            _init.Release();
-        }
-
-        return _settings;
-    }
-
     /// <summary>
     /// Folds the minimum spacing and the per-minute bucket into a single sleep, reserved under a lock
     /// so concurrent callers queue behind one another instead of all waking at the same instant.
     /// </summary>
-    private async Task WaitForSlotAsync(SourceSettings settings, CancellationToken ct)
+    private async Task WaitForSlotAsync(CancellationToken ct)
     {
         TimeSpan delay;
 
@@ -96,7 +66,7 @@ internal sealed class EspnRequestGate(IMediator mediator, ILogger<EspnRequestGat
 
             var earliest = _nextAllowed;
 
-            if (_recent.Count >= settings.RequestsPerMinute)
+            if (_recent.Count >= SourceSettings.RequestsPerMinute)
             {
                 var bucketFreesAt = _recent.Peek() + TimeSpan.FromMinutes(1);
                 if (bucketFreesAt > earliest)
@@ -104,7 +74,8 @@ internal sealed class EspnRequestGate(IMediator mediator, ILogger<EspnRequestGat
             }
 
             var sendAt = earliest > now ? earliest : now;
-            var spacing = settings.MinDelayMs + Random.Shared.Next(0, Math.Max(1, settings.JitterMs));
+            var spacing = SourceSettings.MinDelayMs
+                + Random.Shared.Next(0, Math.Max(1, SourceSettings.JitterMs));
 
             _nextAllowed = sendAt.AddMilliseconds(spacing);
             _recent.Enqueue(sendAt);
@@ -125,9 +96,5 @@ internal sealed class EspnRequestGate(IMediator mediator, ILogger<EspnRequestGat
         throw new EspnThrottledException("ESPN rate limited the client; run stopped.");
     }
 
-    public void Dispose()
-    {
-        _concurrency?.Dispose();
-        _init.Dispose();
-    }
+    public void Dispose() => _concurrency.Dispose();
 }

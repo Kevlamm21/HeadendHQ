@@ -49,20 +49,9 @@ public static class SettingsEndpoints
         // What used to be "sport preferences" is now follow state on the catalog itself:
         // PATCH /catalog/leagues/{id} and PATCH /catalog/teams/{id}.
 
-        group.MapGet("/source", async (IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new GetSourceSettingsQuery(), ct)))
-            .WithName("GetSourceSettings")
-            .WithSummary("Get source settings")
-            .WithDescription("How politely we talk to upstream sources: request rate, spacing, jitter, concurrency, per-run budget, and user agent.");
-
-        group.MapPatch("/source", async (
-            [FromBody] UpdateSourceSettingsCommand command,
-            IMediator mediator,
-            CancellationToken ct) =>
-            Results.Ok(await mediator.Send(command, ct)))
-            .WithName("UpdateSourceSettings")
-            .WithSummary("Update source settings")
-            .WithDescription("Partially updates source settings. Only non-null fields are applied.");
+        // Source pacing (request rate, spacing, jitter, concurrency, per-run budget, user agent) is
+        // not a per-install preference, so it lives in HeadendHQ.Core.Settings.SourceSettings as
+        // constants rather than behind an endpoint.
 
         group.MapGet("/vod-launcher", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetVodLauncherSettingsQuery(), ct)))

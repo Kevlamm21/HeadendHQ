@@ -27,7 +27,6 @@ public record SyncSportsAndLeaguesCommand : ICommand<CatalogSyncState>;
 public class SyncSportsAndLeaguesHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
-    IMediator mediator,
     ISportsCatalogSource source,
     ILogger<SyncSportsAndLeaguesHandler> logger)
     : ICommandHandler<SyncSportsAndLeaguesCommand, CatalogSyncState>
@@ -36,8 +35,6 @@ public class SyncSportsAndLeaguesHandler(
     {
         var state = await workspace.LoadSingleOrDefault(new CatalogSyncStateSpec(), ct)
             ?? throw new InvalidOperationException("CatalogSyncState not found.");
-
-        var sourceSettings = await mediator.Send(new GetSourceSettingsQuery(), ct);
 
         state.Begin();
         state.EnterStage("Sports");
@@ -50,11 +47,12 @@ public class SyncSportsAndLeaguesHandler(
 
             foreach (var descriptor in sports)
             {
-                // Every sport is recorded whether or not we walk it, so the settings UI can offer
-                // "pull lacrosse too" without a second discovery of the sport list itself.
+                // Every sport is recorded whether or not we walk it, so a sport outside the
+                // discovery set can still be pulled on demand later without a second discovery of
+                // the sport list itself.
                 var sport = await UpsertSportAsync(descriptor, ct);
 
-                if (!sourceSettings.CoversSport(descriptor.Slug))
+                if (!SourceSettings.CoversSport(descriptor.Slug))
                     continue;
 
                 if (state.IsLeagueCompleted(descriptor.Slug))
@@ -211,15 +209,20 @@ public class RefreshLeagueTeamsHandler(
         }
 
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
-        var key = new LeagueKey(sport.Slug, league.Slug, league.ExternalRefs.ExternalIdFor(source.SourceKey));
+        var key = new LeagueKey(sport.Slug, league.Slug, league.ExternalIdFor(source.SourceKey));
 
         var descriptors = await source.GetTeamsAsync(key, ct);
         var existing = (await workspace.Load(new TeamsByLeagueSpec(league.Id), ct))
-            .ToDictionary(t => t.ExternalRefs.ExternalIdFor(source.SourceKey) ?? $"name:{t.DisplayName}");
+            .ToDictionary(t => t.ExternalIdFor(source.SourceKey) ?? $"name:{t.DisplayName}");
 
         foreach (var descriptor in descriptors)
         {
-            if (!existing.TryGetValue(descriptor.ExternalId, out var team))
+            // The name fallback is what carries the catalog across a source swap: rows still
+            // stamped with the old source answer to no id the new one knows, and inserting a
+            // second team with the same name would violate (LeagueId, DisplayName). TrackSource
+            // below re-stamps the row, so the miss happens once per team and then never again.
+            if (!existing.TryGetValue(descriptor.ExternalId, out var team)
+                && !existing.TryGetValue($"name:{descriptor.DisplayName}", out team))
             {
                 team = new Team(league.Id, descriptor.DisplayName);
                 workspace.Add(team);
@@ -262,8 +265,7 @@ public class RefreshLeagueTeamsHandler(
     /// </summary>
     private async Task VerifyLogosAsync(LeagueKey key, IEnumerable<Team> teams, CancellationToken ct)
     {
-        var settings = await mediator.Send(new GetSourceSettingsQuery(), ct);
-        var budget = settings.MaxTeamLogoLookupsPerRun;
+        var budget = SourceSettings.MaxTeamLogoLookupsPerRun;
         var verified = 0;
 
         foreach (var team in teams)
@@ -274,7 +276,7 @@ public class RefreshLeagueTeamsHandler(
             if (!team.LogosNeedVerifying)
                 continue;
 
-            if (team.ExternalRefs.ExternalIdFor(source.SourceKey) is not { } externalId)
+            if (team.ExternalIdFor(source.SourceKey) is not { } externalId)
                 continue;
 
             IReadOnlyList<ImageCandidate> candidates;
@@ -357,7 +359,7 @@ public class ResolveBroadcasterHandler(
         // record — some mark beats none — but the broadcaster's own slug outranks it and replaces
         // what the alias supplied. Either way it settles after one lookup and stops churning.
         var isCanonical = broadcaster.Slug.Equals(command.Slug, StringComparison.OrdinalIgnoreCase);
-        var knownExternalId = broadcaster.ExternalRefs.ExternalIdFor(source.SourceKey);
+        var knownExternalId = broadcaster.ExternalIdFor(source.SourceKey);
 
         if (!isCanonical && knownExternalId is not null)
             return broadcaster;
@@ -436,7 +438,7 @@ public class DiscoverBroadcastersHandler(
             foreach (var alias in b.Aliases)
                 bySlugOrAlias.TryAdd(alias, b);
 
-            if (b.ExternalRefs.ExternalIdFor(source.SourceKey) is { } id)
+            if (b.ExternalIdFor(source.SourceKey) is { } id)
                 resolvedIds.Add(id);
         }
 
@@ -583,7 +585,7 @@ public class RefreshBroadcasterDetailsHandler(
 
         foreach (var broadcaster in broadcasters)
         {
-            if (broadcaster.ExternalRefs.ExternalIdFor(source.SourceKey) is not { } externalId)
+            if (broadcaster.ExternalIdFor(source.SourceKey) is not { } externalId)
                 continue;
 
             try

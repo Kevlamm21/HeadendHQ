@@ -38,4 +38,4 @@ HeadendHQ/                  ← repo root
 7. Smarter HA automations — channel warming, OT logic, etc.
 
 
-You should not run any tests in memory, when your work is completed you can run a dotnet build then give me a test plan to test what you just implimented
+You should not run any tests in memory or attempt to run a real database, when your work is completed you can run a dotnet build then give me a test plan to test what you just implimented

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using HeadendHQ.Core.Settings;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
@@ -86,7 +87,7 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
         string url, string? etag, DateTimeOffset? lastModified, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        ApplyBrowserHeaders(request, (await gate.GetSettingsAsync(ct)).UserAgent);
+        ApplyBrowserHeaders(request, SourceSettings.UserAgent);
 
         if (!string.IsNullOrEmpty(etag))
             request.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(etag, isWeak: etag.StartsWith("W/", StringComparison.Ordinal)));

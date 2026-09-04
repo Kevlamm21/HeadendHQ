@@ -52,9 +52,6 @@ public static class DbExtensions
 
             // Only the marker row is created here. Catalog discovery itself is deliberately not run
             // from startup: it needs the network, takes minutes, and must not delay the app coming up.
-            if (!await db.Set<SourceSettings>().AnyAsync())
-                db.Add(new SourceSettings());
-
             if (!await db.Set<Core.Catalog.CatalogSyncState>().AnyAsync())
                 db.Add(new Core.Catalog.CatalogSyncState());
 

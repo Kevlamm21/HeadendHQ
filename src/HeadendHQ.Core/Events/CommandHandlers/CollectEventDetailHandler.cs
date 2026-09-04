@@ -138,7 +138,7 @@ public class CollectEventDetailHandler(
                 continue;
 
             var team = await workspace.LoadById<Team, int>(id, ct);
-            var externalId = team.ExternalRefs.ExternalIdFor(catalogSource.SourceKey);
+            var externalId = team.ExternalIdFor(catalogSource.SourceKey);
 
             if (externalId is null)
                 continue;

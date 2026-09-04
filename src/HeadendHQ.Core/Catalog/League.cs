@@ -3,7 +3,7 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog;
 
-public class League : IEntity<int>
+public class League : IEntity<int>, IExternalRef
 {
     private League() { }
 
@@ -33,7 +33,9 @@ public class League : IEntity<int>
 
     public DateTimeOffset? TeamsRefreshedAtUtc { get; private set; }
 
-    public List<ExternalRef> ExternalRefs { get; private set; } = [];
+    public string? SourceKey { get; private set; }
+    public string? ExternalId { get; private set; }
+
     public List<LeagueLogo> Logos { get; private set; } = [];
     public List<LeagueWordmark> Wordmarks { get; private set; } = [];
 
@@ -49,8 +51,11 @@ public class League : IEntity<int>
 
     public void MarkTeamsRefreshed() => TeamsRefreshedAtUtc = DateTimeOffset.UtcNow;
 
-    public void TrackSource(string sourceKey, string externalId) =>
-        ExternalRefs.Track(sourceKey, externalId);
+    public void TrackSource(string sourceKey, string externalId)
+    {
+        SourceKey = sourceKey;
+        ExternalId = externalId;
+    }
 
     /// <summary>
     /// Picks the logo for an event variant, falling back to the league default. Lets an NBA Cup game

@@ -3,7 +3,7 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog;
 
-public class Team : IEntity<int>
+public class Team : IEntity<int>, IExternalRef
 {
     private Team() { }
 
@@ -40,7 +40,9 @@ public class Team : IEntity<int>
     /// </summary>
     public DateTimeOffset? LogosVerifiedAtUtc { get; private set; }
 
-    public List<ExternalRef> ExternalRefs { get; private set; } = [];
+    public string? SourceKey { get; private set; }
+    public string? ExternalId { get; private set; }
+
     public List<TeamLogo> Logos { get; private set; } = [];
 
     public void Describe(
@@ -72,8 +74,11 @@ public class Team : IEntity<int>
 
     public bool LogosNeedVerifying => LogosVerifiedAtUtc is null;
 
-    public void TrackSource(string sourceKey, string externalId) =>
-        ExternalRefs.Track(sourceKey, externalId);
+    public void TrackSource(string sourceKey, string externalId)
+    {
+        SourceKey = sourceKey;
+        ExternalId = externalId;
+    }
 
     /// <summary>
     /// The preferred logo, falling back through the variants most likely to exist. The plain

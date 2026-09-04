@@ -1,38 +1,23 @@
 namespace HeadendHQ.Core.Catalog;
 
 /// <summary>
-/// How one catalog source identifies this entity. Held as a collection so an entity can keep its
-/// ESPN id alongside a second source's id, which is what makes swapping the source survivable.
+/// How a catalog source identifies this entity, held as flat columns on the entity's own table.
+/// A row is sourced from exactly one place, so keeping the pair on the main table makes "find the
+/// team ESPN calls 12" a single indexed comparison with no join. A second source replaces the pair
+/// rather than sitting beside it.
 /// </summary>
-public class ExternalRef
+public interface IExternalRef
 {
-    private ExternalRef() { }
-
-    public ExternalRef(string sourceKey, string externalId)
-    {
-        SourceKey = sourceKey;
-        ExternalId = externalId;
-    }
-
-    public string SourceKey { get; private set; } = string.Empty;
-    public string ExternalId { get; private set; } = string.Empty;
+    string? SourceKey { get; }
+    string? ExternalId { get; }
 }
 
 public static class ExternalRefExtensions
 {
     /// <summary>
-    /// Records how <paramref name="sourceKey"/> identifies this entity, replacing that source's
-    /// previous id. Other sources' refs are left alone.
+    /// The id <paramref name="sourceKey"/> knows this entity by, or null when the entity was
+    /// sourced elsewhere — so a swapped source never silently reuses the old source's ids.
     /// </summary>
-    public static void Track(this List<ExternalRef> refs, string sourceKey, string externalId)
-    {
-        if (refs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId))
-            return;
-
-        refs.RemoveAll(r => r.SourceKey == sourceKey);
-        refs.Add(new ExternalRef(sourceKey, externalId));
-    }
-
-    public static string? ExternalIdFor(this List<ExternalRef> refs, string sourceKey) =>
-        refs.FirstOrDefault(r => r.SourceKey == sourceKey)?.ExternalId;
+    public static string? ExternalIdFor(this IExternalRef entity, string sourceKey) =>
+        entity.SourceKey == sourceKey ? entity.ExternalId : null;
 }

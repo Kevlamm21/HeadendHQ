@@ -10,7 +10,7 @@ public class SportBySlugSpec(string slug) : ISpecification<Sport>
 public class SportByExternalIdSpec(string sourceKey, string externalId) : ISpecification<Sport>
 {
     public IQueryable<Sport> Apply(IQueryable<Sport> queryable) =>
-        queryable.Where(s => s.ExternalRefs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId));
+        queryable.Where(s => s.SourceKey == sourceKey && s.ExternalId == externalId);
 }
 
 public class LeagueBySlugSpec(string slug) : ISpecification<League>
@@ -21,7 +21,7 @@ public class LeagueBySlugSpec(string slug) : ISpecification<League>
 public class LeagueByExternalIdSpec(string sourceKey, string externalId) : ISpecification<League>
 {
     public IQueryable<League> Apply(IQueryable<League> queryable) =>
-        queryable.Where(l => l.ExternalRefs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId));
+        queryable.Where(l => l.SourceKey == sourceKey && l.ExternalId == externalId);
 }
 
 public class LeaguesBySportSpec(int sportId) : ISpecification<League>
@@ -43,8 +43,7 @@ public class TeamsByLeagueSpec(int leagueId) : ISpecification<Team>
 public class TeamByExternalIdSpec(int leagueId, string sourceKey, string externalId) : ISpecification<Team>
 {
     public IQueryable<Team> Apply(IQueryable<Team> queryable) =>
-        queryable.Where(t => t.LeagueId == leagueId &&
-            t.ExternalRefs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId));
+        queryable.Where(t => t.LeagueId == leagueId && t.SourceKey == sourceKey && t.ExternalId == externalId);
 }
 
 public class TeamByLeagueAndNameSpec(int leagueId, string displayName) : ISpecification<Team>
@@ -81,7 +80,7 @@ public class BroadcastersNeedingDetailSpec : ISpecification<Broadcaster>
 public class BroadcasterByExternalIdSpec(string sourceKey, string externalId) : ISpecification<Broadcaster>
 {
     public IQueryable<Broadcaster> Apply(IQueryable<Broadcaster> queryable) =>
-        queryable.Where(b => b.ExternalRefs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId));
+        queryable.Where(b => b.SourceKey == sourceKey && b.ExternalId == externalId);
 }
 
 public class SubscribedBroadcastersSpec : ISpecification<Broadcaster>

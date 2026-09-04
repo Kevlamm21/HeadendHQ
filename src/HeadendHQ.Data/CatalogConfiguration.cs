@@ -5,9 +5,10 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace HeadendHQ.Data;
 
 /// <summary>
-/// Catalog aggregates own their external refs and logo slots, so they load with their parent and
-/// no specification ever has to reach for an Include. That is what keeps EF Core out of
-/// <c>HeadendHQ.Core</c>.
+/// Catalog aggregates own their logo slots, so they load with their parent and no specification
+/// ever has to reach for an Include. That is what keeps EF Core out of <c>HeadendHQ.Core</c>.
+/// The source identity is a plain column pair on the aggregate's own table rather than an owned
+/// collection, so resolving by external id is one indexed comparison with nothing to join.
 /// </summary>
 internal class SportConfiguration : IEntityTypeConfiguration<Sport>
 {
@@ -16,7 +17,7 @@ internal class SportConfiguration : IEntityTypeConfiguration<Sport>
         builder.ToTable("Sports");
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => e.Slug).IsUnique();
-        builder.OwnsMany(e => e.ExternalRefs, ExternalRefs.Map<Sport>("SportExternalRefs", "SportId"));
+        builder.HasIndex(e => new { e.SourceKey, e.ExternalId });
     }
 }
 
@@ -29,7 +30,7 @@ internal class LeagueConfiguration : IEntityTypeConfiguration<League>
         builder.HasIndex(e => e.Slug).IsUnique();
         builder.HasIndex(e => e.SportId);
 
-        builder.OwnsMany(e => e.ExternalRefs, ExternalRefs.Map<League>("LeagueExternalRefs", "LeagueId"));
+        builder.HasIndex(e => new { e.SourceKey, e.ExternalId });
 
         builder.OwnsMany(e => e.Logos, logo =>
         {
@@ -61,7 +62,7 @@ internal class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.LeagueId, e.DisplayName }).IsUnique();
 
-        builder.OwnsMany(e => e.ExternalRefs, ExternalRefs.Map<Team>("TeamExternalRefs", "TeamId"));
+        builder.HasIndex(e => new { e.SourceKey, e.ExternalId });
 
         builder.OwnsMany(e => e.Logos, logo =>
         {
@@ -84,7 +85,7 @@ internal class BroadcasterConfiguration : IEntityTypeConfiguration<Broadcaster>
         builder.HasIndex(e => e.Slug).IsUnique();
         builder.PrimitiveCollection(e => e.Aliases);
 
-        builder.OwnsMany(e => e.ExternalRefs, ExternalRefs.Map<Broadcaster>("BroadcasterExternalRefs", "BroadcasterId"));
+        builder.HasIndex(e => new { e.SourceKey, e.ExternalId });
 
         builder.OwnsMany(e => e.Logos, logo =>
         {
@@ -106,22 +107,4 @@ internal class CatalogSyncStateConfiguration : IEntityTypeConfiguration<CatalogS
         builder.HasKey(e => e.Id);
         builder.PrimitiveCollection(e => e.CompletedLeagueSlugs);
     }
-}
-
-internal static class ExternalRefs
-{
-    /// <summary>
-    /// Every aggregate maps its external refs the same way; only the table and owner column differ.
-    /// The unique index is what makes "find the team ESPN calls 12" a single indexed lookup.
-    /// </summary>
-    public static Action<OwnedNavigationBuilder<TOwner, ExternalRef>> Map<TOwner>(string table, string ownerColumn)
-        where TOwner : class => builder =>
-    {
-        builder.ToTable(table);
-        builder.WithOwner().HasForeignKey(ownerColumn);
-        builder.Property<int>("Id");
-        builder.HasKey("Id");
-        builder.HasIndex(ownerColumn, nameof(ExternalRef.SourceKey)).IsUnique();
-        builder.HasIndex(nameof(ExternalRef.SourceKey), nameof(ExternalRef.ExternalId));
-    };
 }

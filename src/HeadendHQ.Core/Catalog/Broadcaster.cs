@@ -16,7 +16,7 @@ public enum BroadcasterKind
 /// missing. Rows arrive from ESPN's media index and from the schedule, unsubscribed; the launch
 /// package and mapping are chosen per row afterwards.
 /// </summary>
-public class Broadcaster : IEntity<int>
+public class Broadcaster : IEntity<int>, IExternalRef
 {
     private Broadcaster() { }
 
@@ -73,7 +73,9 @@ public class Broadcaster : IEntity<int>
     /// </summary>
     public List<string> Aliases { get; private set; } = [];
 
-    public List<ExternalRef> ExternalRefs { get; private set; } = [];
+    public string? SourceKey { get; private set; }
+    public string? ExternalId { get; private set; }
+
     public List<BroadcasterLogo> Logos { get; private set; } = [];
 
     public void Describe(string name, string? shortName, string? callLetters, BroadcasterKind kind)
@@ -124,8 +126,11 @@ public class Broadcaster : IEntity<int>
         Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)
         || Aliases.Contains(slug, StringComparer.OrdinalIgnoreCase);
 
-    public void TrackSource(string sourceKey, string externalId) =>
-        ExternalRefs.Track(sourceKey, externalId);
+    public void TrackSource(string sourceKey, string externalId)
+    {
+        SourceKey = sourceKey;
+        ExternalId = externalId;
+    }
 
     public BroadcasterLogo? LogoFor(string variant) =>
         Logos.FirstOrDefault(l => l.Variant == variant)

@@ -3,6 +3,7 @@ using System;
 using HeadendHQ.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HeadendHQ.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904173738_FlattenExternalRefs")]
+    partial class FlattenExternalRefs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
@@ -510,6 +513,43 @@ namespace HeadendHQ.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ScheduleScrapingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HeadendHQ.Core.Settings.SourceSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.PrimitiveCollection<string>("DiscoverySportSlugs")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("JitterMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxConcurrency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxTeamLogoLookupsPerRun")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinDelayMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PerRunRequestBudget")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RequestsPerMinute")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserAgent")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SourceSettings", (string)null);
                 });
 
             modelBuilder.Entity("HeadendHQ.Core.Titles.Title", b =>
