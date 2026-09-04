@@ -9,9 +9,7 @@ namespace HeadendHQ.Hangfire;
 /// Runs each event's detail lookup as its own background job.
 /// <para>
 /// Splitting it out keeps the scrape short and lets one unreadable game retry on its own instead of
-/// taking the run with it. It costs no extra upstream requests: the summary call is per-event
-/// anyway, and rosters are cached on the team row with a TTL, so several games for the same team
-/// still share one roster fetch.
+/// taking the run with it, and each event is looked up once ever rather than every night.
 /// </para>
 /// </summary>
 public class EventDetailQueue(IBackgroundJobClient jobClient) : IEventDetailQueue

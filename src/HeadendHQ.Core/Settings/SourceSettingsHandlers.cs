@@ -27,7 +27,6 @@ public record UpdateSourceSettingsCommand(
     int? MaxConcurrency,
     int? PerRunRequestBudget,
     string? UserAgent,
-    int? RosterTtlDays,
     IReadOnlyList<string>? DiscoverySportSlugs = null,
     int? MaxTeamLogoLookupsPerRun = null) : ICommand<SourceSettings>;
 
@@ -41,7 +40,7 @@ public class UpdateSourceSettingsHandler(IWorkspace workspace)
 
         settings.Configure(
             command.RequestsPerMinute, command.MinDelayMs, command.JitterMs, command.MaxConcurrency,
-            command.PerRunRequestBudget, command.UserAgent, command.RosterTtlDays,
+            command.PerRunRequestBudget, command.UserAgent,
             command.DiscoverySportSlugs, command.MaxTeamLogoLookupsPerRun);
         return settings;
     }

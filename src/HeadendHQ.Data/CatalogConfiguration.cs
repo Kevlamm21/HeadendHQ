@@ -75,21 +75,6 @@ internal class TeamConfiguration : IEntityTypeConfiguration<Team>
     }
 }
 
-internal class AthleteConfiguration : IEntityTypeConfiguration<Athlete>
-{
-    public void Configure(EntityTypeBuilder<Athlete> builder)
-    {
-        builder.ToTable("Athletes");
-        builder.HasKey(e => e.Id);
-        builder.HasIndex(e => e.TeamId);
-
-        builder.OwnsMany(e => e.ExternalRefs, ExternalRefs.Map<Athlete>("AthleteExternalRefs", "AthleteId"));
-
-        builder.OwnsOne(e => e.Headshot);
-        builder.Navigation(e => e.Headshot).IsRequired();
-    }
-}
-
 internal class BroadcasterConfiguration : IEntityTypeConfiguration<Broadcaster>
 {
     public void Configure(EntityTypeBuilder<Broadcaster> builder)

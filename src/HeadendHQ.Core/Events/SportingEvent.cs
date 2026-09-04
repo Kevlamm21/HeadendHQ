@@ -132,14 +132,25 @@ public class SportingEvent : Entity<Guid>
         Touch();
     }
 
-    public void SetCast(IEnumerable<int> athleteIdsInBillingOrder)
+    public void SetCast(IEnumerable<BilledAthlete> billedInOrder)
     {
         Cast.Clear();
         var order = 0;
 
-        foreach (var athleteId in athleteIdsInBillingOrder)
-            Cast.Add(new SportingEventCastMember(athleteId, order++));
+        foreach (var billed in billedInOrder)
+            Cast.Add(new SportingEventCastMember(
+                billed.Name, billed.Role, billed.HeadshotImageId, order++));
 
+        Touch();
+    }
+
+    /// <summary>
+    /// Something the detail lookup produced has been discarded, so the answer we recorded is no
+    /// longer the whole truth. Clearing the stamp is what puts the event back in the queue.
+    /// </summary>
+    public void ResetDetails()
+    {
+        DetailsFetchedAtUtc = null;
         Touch();
     }
 

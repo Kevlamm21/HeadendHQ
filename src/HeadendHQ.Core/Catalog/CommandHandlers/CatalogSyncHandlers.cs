@@ -1,6 +1,7 @@
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Specifications;
 using HeadendHQ.Core.Iptv;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;

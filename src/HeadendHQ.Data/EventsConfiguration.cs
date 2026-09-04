@@ -23,7 +23,7 @@ internal class SportingEventConfiguration : IEntityTypeConfiguration<SportingEve
             cast.ToTable("SportingEventCast");
             cast.WithOwner().HasForeignKey(c => c.SportingEventId);
             cast.HasKey(c => c.Id);
-            cast.HasIndex(c => new { c.SportingEventId, c.AthleteId }).IsUnique();
+            cast.HasIndex(c => new { c.SportingEventId, c.Order });
         });
     }
 }

@@ -89,39 +89,8 @@ public class SubscribedBroadcastersSpec : ISpecification<Broadcaster>
     public IQueryable<Broadcaster> Apply(IQueryable<Broadcaster> queryable) => queryable.Where(b => b.IsSubscribed);
 }
 
-public class AthleteByExternalIdSpec(string sourceKey, string externalId) : ISpecification<Athlete>
-{
-    public IQueryable<Athlete> Apply(IQueryable<Athlete> queryable) =>
-        queryable.Where(a => a.ExternalRefs.Any(r => r.SourceKey == sourceKey && r.ExternalId == externalId));
-}
-
-public class AthletesByIdsSpec(IReadOnlyCollection<int> ids) : ISpecification<Athlete>
-{
-    public IQueryable<Athlete> Apply(IQueryable<Athlete> queryable) => queryable.Where(a => ids.Contains(a.Id));
-}
-
-/// <summary>
-/// Every athlete's identity without their headshot slot, for building a scrape-time lookup.
-/// Projected so a scrape does not pull thousands of image rows it will not use.
-/// </summary>
-public record AthleteRef(int Id, string SourceKey, string ExternalId, bool HasHeadshot);
-
-public class AthleteRefsSpec(string sourceKey) : ISpecification<Athlete, AthleteRef>
-{
-    public IQueryable<AthleteRef> Apply(IQueryable<Athlete> queryable) =>
-        queryable
-            .SelectMany(
-                a => a.ExternalRefs.Where(r => r.SourceKey == sourceKey),
-                (a, r) => new AthleteRef(a.Id, r.SourceKey, r.ExternalId, a.Headshot.ImageId != null));
-}
-
 public class CatalogSyncStateSpec : ISpecification<CatalogSyncState>
 {
     public IQueryable<CatalogSyncState> Apply(IQueryable<CatalogSyncState> queryable) => queryable;
-}
-
-public class AthletesByTeamSpec(int teamId) : ISpecification<Athlete>
-{
-    public IQueryable<Athlete> Apply(IQueryable<Athlete> queryable) => queryable.Where(a => a.TeamId == teamId);
 }
 

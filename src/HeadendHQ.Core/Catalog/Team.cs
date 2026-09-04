@@ -34,12 +34,6 @@ public class Team : IEntity<int>
     public string PreferredLogoRel { get; private set; } = LogoRels.OnSecondaryColor;
 
     /// <summary>
-    /// When this team's roster was last pulled. Rosters are fetched on demand during a scrape and
-    /// reused until this goes stale, so a team playing three games in a week costs one fetch.
-    /// </summary>
-    public DateTimeOffset? RosterRefreshedAtUtc { get; private set; }
-
-    /// <summary>
     /// When this team's logo variants were confirmed against a trustworthy source. A source's bulk
     /// listing may be wrong about them — ESPN's is, for the NFL — so the per-team confirmation is
     /// tracked separately. Logo addresses are stable, so this happens once per team, ever.
@@ -74,14 +68,9 @@ public class Team : IEntity<int>
         if (alternateColorHex is not null) AlternateColorHex = NormalizeColor(alternateColorHex);
     }
 
-    public void MarkRosterRefreshed() => RosterRefreshedAtUtc = DateTimeOffset.UtcNow;
-
     public void MarkLogosVerified() => LogosVerifiedAtUtc = DateTimeOffset.UtcNow;
 
     public bool LogosNeedVerifying => LogosVerifiedAtUtc is null;
-
-    public bool RosterIsStale(int ttlDays) =>
-        RosterRefreshedAtUtc is null || RosterRefreshedAtUtc < DateTimeOffset.UtcNow.AddDays(-ttlDays);
 
     public void TrackSource(string sourceKey, string externalId) =>
         ExternalRefs.Track(sourceKey, externalId);

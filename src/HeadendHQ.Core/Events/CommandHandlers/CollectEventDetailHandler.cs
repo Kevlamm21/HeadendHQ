@@ -1,7 +1,7 @@
 using HeadendHQ.Core.Catalog;
-using HeadendHQ.Core.Catalog.Specifications;
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Events.Specifications;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
@@ -15,10 +15,10 @@ public record CollectEventDetailCommand(Guid SportingEventId) : ICommand<Unit>;
 /// <summary>
 /// The second, per-event lookup: venue, competition note, series, and the billed cast.
 /// <para>
-/// Kept to as few upstream calls as possible. The summary is one request per event and has nothing
-/// to share, but rosters and depth charts are per <em>team</em> — so they are cached on the team row
-/// with a TTL, and a team playing three games this week is fetched once rather than three times.
-/// Headshots are content-addressed, so a player's face is downloaded once and never again.
+/// Players are never stored. They are read out of the source's response, ranked, and the handful
+/// that get billed are written onto the event as plain names and roles — everything downstream
+/// needs, and nothing to join back to. Only their faces persist, and those are content-addressed
+/// and keyed by source URL, so a player is downloaded once and never again.
 /// </para>
 /// </summary>
 public class CollectEventDetailHandler(
@@ -44,7 +44,6 @@ public class CollectEventDetailHandler(
         var league = await workspace.LoadById<League, int>(sportingEvent.LeagueId, ct);
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
         var settings = await mediator.Send(new GetScheduleScrapingSettingsQuery(), ct);
-        var sourceSettings = await mediator.Send(new GetSourceSettingsQuery(), ct);
 
         var key = new EventKey(sport.Slug, league.Slug, sportingEvent.ExternalId);
         var detail = await detailSource.GetDetailAsync(key, ct);
@@ -54,19 +53,15 @@ public class CollectEventDetailHandler(
         // The summary only carries a cast once a game is close or under way. For anything further
         // out we fall back to team rosters, which is the only branch that costs extra requests.
         if (candidates.Count == 0)
-            candidates = await FromRostersAsync(sportingEvent, league, sport, sourceSettings.RosterTtlDays, ct);
+            candidates = await FromRostersAsync(sportingEvent, league, sport, ct);
 
         var billed = CastRanker.Rank(candidates, sport.Slug, settings.MaxAthletesPerTeam);
-        var athleteIds = new List<int>();
+        var cast = new List<BilledAthlete>();
 
         foreach (var candidate in billed)
-            athleteIds.Add(await UpsertAthleteAsync(
-                candidate,
-                league.Id,
-                candidate.IsHome ? sportingEvent.HomeTeamId : sportingEvent.AwayTeamId,
-                ct));
+            cast.Add(await BillAsync(candidate, sportingEvent, league.Id, ct));
 
-        sportingEvent.SetCast(athleteIds);
+        sportingEvent.SetCast(cast);
 
         // Recorded even when the source told us nothing, so a game with no venue on file is not
         // re-requested every single night.
@@ -81,7 +76,7 @@ public class CollectEventDetailHandler(
         logger.LogInformation(
             "Collected detail for {Away} at {Home} ({League}): {Cast} billed, variant {Variant}.",
             sportingEvent.AwayTeamName, sportingEvent.HomeTeamName, league.Slug,
-            athleteIds.Count, sportingEvent.Variant);
+            cast.Count, sportingEvent.Variant);
 
         // This runs on a queue, so it usually finishes after the nightly sweep has already looked
         // for events to produce. Without this a game scraped at 6am would not get a title until
@@ -94,14 +89,42 @@ public class CollectEventDetailHandler(
     }
 
     /// <summary>
+    /// Flattens one ranked candidate into the row the title will be built from, downloading their
+    /// face if this is the first time anyone has needed it.
+    /// </summary>
+    private async Task<BilledAthlete> BillAsync(
+        CastCandidate candidate, SportingEvent sportingEvent, int leagueId, CancellationToken ct)
+    {
+        // The side is known here, so the team half of the role comes off the event rather than off
+        // the source's naming — it then reads the same as the event's own team names.
+        var teamName = candidate.IsHome ? sportingEvent.HomeTeamName : sportingEvent.AwayTeamName;
+
+        var role = string.Join(", ", new[] { candidate.Athlete.Position, teamName }
+            .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+        // Tagged with the league so a media-day refresh can wipe one league's faces and no others.
+        var headshotImageId = candidate.Athlete.HeadshotUrl is { Length: > 0 } url
+            ? await mediator.Send(new MaterializeImageByUrlCommand(url, ImagePurpose.Headshot, leagueId), ct)
+            : null;
+
+        return new BilledAthlete(
+            candidate.Athlete.DisplayName, role.Length > 0 ? role : null, headshotImageId);
+    }
+
+    /// <summary>
     /// Compared in local time: "due today" means the user's day, not UTC's. The stored kind is
     /// Unspecified once SQLite has round-tripped it, so it is pinned before converting.
     /// </summary>
     private static bool IsDueToday(DateTime startUtc) =>
         DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime().Date == DateTime.Now.Date;
 
+    /// <summary>
+    /// The two calls are a pair and neither stands alone: the roster says who the players are but
+    /// not who starts, and the depth chart is nothing but athlete ids and ranks. Joined here, in
+    /// memory, and thrown away — the ranked handful is the only part worth keeping.
+    /// </summary>
     private async Task<List<CastCandidate>> FromRostersAsync(
-        SportingEvent sportingEvent, League league, Sport sport, int rosterTtlDays, CancellationToken ct)
+        SportingEvent sportingEvent, League league, Sport sport, CancellationToken ct)
     {
         var candidates = new List<CastCandidate>();
 
@@ -122,89 +145,15 @@ public class CollectEventDetailHandler(
 
             var key = new TeamKey(new LeagueKey(sport.Slug, league.Slug), externalId);
 
-            // The TTL is what keeps this cheap: several games for the same team in one window share
-            // a single roster fetch, and a nightly re-run does not refetch a roster from yesterday.
-            if (team.RosterIsStale(rosterTtlDays))
-            {
-                var roster = await catalogSource.GetRosterAsync(key, ct);
-                var depth = await catalogSource.GetDepthChartAsync(key, sportingEvent.StartUtc.Year, ct);
+            var roster = await catalogSource.GetRosterAsync(key, ct);
+            var depth = await catalogSource.GetDepthChartAsync(key, sportingEvent.StartUtc.Year, ct);
 
-                foreach (var athlete in roster)
-                    candidates.Add(new CastCandidate(
-                        athlete, isHome, teamName, externalId,
-                        DepthRank: depth.TryGetValue(athlete.ExternalId, out var rank) ? rank : null));
-
-                team.MarkRosterRefreshed();
-                await StoreRosterAsync(roster, league.Id, team.Id, ct);
-            }
-            else
-            {
-                // Already stored; rebuild candidates from what we hold rather than asking again.
-                foreach (var athlete in await LoadStoredAthletesAsync(team.Id, ct))
-                    candidates.Add(new CastCandidate(athlete, isHome, teamName, externalId));
-            }
+            foreach (var athlete in roster)
+                candidates.Add(new CastCandidate(
+                    athlete, isHome, teamName, externalId,
+                    DepthRank: depth.TryGetValue(athlete.ExternalId, out var rank) ? rank : null));
         }
 
         return candidates;
-    }
-
-    private async Task StoreRosterAsync(
-        IReadOnlyList<AthleteDescriptor> roster, int leagueId, int teamId, CancellationToken ct)
-    {
-        foreach (var descriptor in roster)
-            await UpsertAthleteRowAsync(descriptor, leagueId, teamId, ct);
-
-        await unitOfWork.SaveChanges(ct);
-    }
-
-    private async Task<List<AthleteDescriptor>> LoadStoredAthletesAsync(int teamId, CancellationToken ct)
-    {
-        var athletes = await workspace.Load(new AthletesByTeamSpec(teamId), ct);
-
-        return [.. athletes.Select(a => new AthleteDescriptor(
-            a.ExternalRefs.ExternalIdFor(catalogSource.SourceKey) ?? a.Id.ToString(),
-            a.DisplayName, a.ShortName, a.Position, a.Jersey, a.ExperienceYears,
-            a.Headshot.SourceUrl))];
-    }
-
-    private async Task<int> UpsertAthleteAsync(
-        CastCandidate candidate, int leagueId, int? teamId, CancellationToken ct)
-    {
-        // The side is known here, so pass it through: sending null would blank the team the roster
-        // pass just recorded, and the cast's roles are built by matching an athlete's team against
-        // the event's two.
-        var athlete = await UpsertAthleteRowAsync(candidate.Athlete, leagueId, teamId, ct);
-
-        // Headshots are content-addressed: this downloads once per player, ever, and a later refresh
-        // that hashes the same costs a 304 and no write.
-        if (!athlete.Headshot.IsMaterialized && athlete.Headshot.SourceUrl is not null)
-            await mediator.Send(new MaterializeImageCommand(athlete.Headshot, ImagePurpose.Headshot), ct);
-
-        return athlete.Id;
-    }
-
-    private async Task<Athlete> UpsertAthleteRowAsync(
-        AthleteDescriptor descriptor, int leagueId, int? teamId, CancellationToken ct)
-    {
-        var athlete = (await workspace.Load(
-            new AthleteByExternalIdSpec(catalogSource.SourceKey, descriptor.ExternalId), ct)).FirstOrDefault();
-
-        if (athlete is null)
-        {
-            athlete = new Athlete(leagueId, descriptor.DisplayName);
-            athlete.TrackSource(catalogSource.SourceKey, descriptor.ExternalId);
-            workspace.Add(athlete);
-            await unitOfWork.SaveChanges(ct);
-        }
-
-        // The latest sighting wins, which is how a trade heals itself without a nightly roster job.
-        athlete.Describe(
-            descriptor.DisplayName, descriptor.ShortName, descriptor.Position,
-            descriptor.Jersey, descriptor.ExperienceYears, teamId ?? athlete.TeamId);
-
-        if (descriptor.HeadshotUrl is { Length: > 0 } url && !athlete.Headshot.IsMaterialized)
-            athlete.PointHeadshotAt(catalogSource.SourceKey, url);
-
-        return athlete;
     }
 }

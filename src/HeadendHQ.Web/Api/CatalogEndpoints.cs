@@ -1,8 +1,9 @@
 using Hangfire;
 using HeadendHQ.Core.Catalog;
 using HeadendHQ.Core.Catalog.CommandHandlers;
-using HeadendHQ.Web.Jobs;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
+using HeadendHQ.Web.Jobs;
 using Mediator;
 
 namespace HeadendHQ.Web.Api;
@@ -52,6 +53,24 @@ public static class CatalogEndpoints
             .WithName("DeleteAllLeagueTeamImages")
             .WithSummary("Delete all stored team images in a league")
             .WithDescription("Debugging aid. Clears the league's team logo materializations and removes only image blobs that are no longer referenced elsewhere.");
+
+        catalog.MapDelete("/headshots", async (IMediator mediator, CancellationToken ct) =>
+        {
+            var deleted = await mediator.Send(new ClearImagesByPurposeCommand(ImagePurpose.Headshot), ct);
+            return Results.Ok(new { imagesDeleted = deleted });
+        })
+            .WithName("ClearAllHeadshots")
+            .WithSummary("Throw away every stored player headshot")
+            .WithDescription("Remove all Headshots & allow for new ones to be fetched. This is a debugging aid; normally only league-level wipes are needed.");
+
+        catalog.MapDelete("/leagues/{id:int}/headshots", async (int id, IMediator mediator, CancellationToken ct) =>
+        {
+            var deleted = await mediator.Send(new ClearImagesByPurposeCommand(ImagePurpose.Headshot, id), ct);
+            return Results.Ok(new { imagesDeleted = deleted });
+        })
+            .WithName("ClearLeagueHeadshots")
+            .WithSummary("Throw away a league's player headshots")
+            .WithDescription("Run at the start of a season, after the league's media day. Ensures future Events use the new headshots.");
 
         catalog.MapPost("/leagues/{id:int}/refresh", async (int id, bool? withLogos, IMediator mediator, CancellationToken ct) =>
             Results.Ok(new { teams = await mediator.Send(new RefreshLeagueTeamsCommand(id, withLogos ?? false), ct) }))

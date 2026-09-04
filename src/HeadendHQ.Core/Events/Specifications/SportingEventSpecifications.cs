@@ -37,6 +37,18 @@ public class EventsNeedingTitlesSpec(DateTime fromUtc, DateTime toUtc) : ISpecif
          .OrderBy(e => e.StartUtc);
 }
 
+/// <summary>
+/// Still-to-come events whose detail is worth collecting again, because something it produced was
+/// thrown away. Scoped to a league when only that league changed.
+/// </summary>
+public class FutureEventsForRecollectSpec(DateTime fromUtc, int? leagueId) : ISpecification<SportingEvent>
+{
+    public IQueryable<SportingEvent> Apply(IQueryable<SportingEvent> q) =>
+        q.Where(e => e.StartUtc >= fromUtc
+                     && e.DetailsFetchedAtUtc != null
+                     && (leagueId == null || e.LeagueId == leagueId));
+}
+
 public class EventsByTitleIdsSpec(IReadOnlyCollection<Guid> titleIds) : ISpecification<SportingEvent>
 {
     public IQueryable<SportingEvent> Apply(IQueryable<SportingEvent> q) =>

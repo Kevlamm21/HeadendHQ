@@ -98,9 +98,6 @@ public class DeleteAllLeagueTeamImagesHandler(IWorkspace workspace)
             foreach (var logo in broadcaster.Logos)
                 AddImageId(logo.Image.ImageId, referencedImageIds);
 
-        foreach (var athlete in await workspace.LoadAll<Athlete>(ct))
-            AddImageId(athlete.Headshot.ImageId, referencedImageIds);
-
         foreach (var title in await workspace.LoadAll<Title>(ct))
         {
             AddImageId(title.Artwork.PrimaryLogoImageId, referencedImageIds);

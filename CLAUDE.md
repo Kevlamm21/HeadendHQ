@@ -36,3 +36,6 @@ HeadendHQ/                  ← repo root
 5. Custom ErsatzTV scripted schedules — schedule games first, backfill, dead air 2am–7am, dummy videos until encoder arrives
 6. Home Assistant automations — consume ErsatzTV XMLTV, watch Tivimate playback, trigger ADB commands
 7. Smarter HA automations — channel warming, OT logic, etc.
+
+
+You should not run any tests in memory, when your work is completed you can run a dotnet build then give me a test plan to test what you just implimented

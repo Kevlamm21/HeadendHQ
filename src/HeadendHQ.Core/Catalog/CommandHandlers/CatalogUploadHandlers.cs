@@ -1,4 +1,5 @@
 using HeadendHQ.Core.Catalog.Specifications;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Shared;
 using Mediator;

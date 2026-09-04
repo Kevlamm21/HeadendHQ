@@ -20,3 +20,33 @@ public class ImageByIdSpec(int id) : ISpecification<Image>
 {
     public IQueryable<Image> Apply(IQueryable<Image> queryable) => queryable.Where(i => i.Id == id);
 }
+
+/// <summary>
+/// The bytes we already hold for an upstream URL. Checked before a download, which is what keeps a
+/// player's headshot to one request ever rather than one per game.
+/// </summary>
+public class ImageBySourceUrlSpec(string sourceUrl) : ISpecification<Image>
+{
+    public IQueryable<Image> Apply(IQueryable<Image> queryable) =>
+        queryable.Where(i => i.SourceUrl == sourceUrl);
+}
+
+/// <summary>
+/// The same question as <see cref="ImageBySourceUrlSpec"/>, answered without the BLOB. This runs
+/// once per billed player per event, and all the caller wants back is an id.
+/// </summary>
+public class ImageIdBySourceUrlSpec(string sourceUrl) : ISpecification<Image, int>
+{
+    public IQueryable<int> Apply(IQueryable<Image> queryable) =>
+        queryable.Where(i => i.SourceUrl == sourceUrl).Select(i => i.Id);
+}
+
+/// <summary>
+/// Every image of one kind, optionally narrowed to a league. The whole point of recording a purpose:
+/// wiping last season's headshots is this, not a walk of the catalog.
+/// </summary>
+public class ImagesByPurposeSpec(ImagePurpose purpose, int? leagueId) : ISpecification<Image>
+{
+    public IQueryable<Image> Apply(IQueryable<Image> queryable) =>
+        queryable.Where(i => i.Purpose == purpose && (leagueId == null || i.LeagueId == leagueId));
+}

@@ -1,5 +1,5 @@
 using HeadendHQ.Core.Catalog;
-using HeadendHQ.Core.Catalog.Specifications;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
@@ -12,9 +12,8 @@ namespace HeadendHQ.Core.Events.CommandHandlers;
 /// <summary>
 /// The single place where the sports domain is flattened into a title.
 /// <para>
-/// Every logo becomes an image id and every athlete becomes a name, a role and a headshot id, so the
-/// NFO writer, artwork composer and ADB mapper never have to know what a league is. A video game or
-/// a movie will map into the same shape from its own entity.
+/// Every logo becomes an image id, so the NFO writer, artwork composer and ADB mapper never have to
+/// know what a league is. A video game or a movie will map into the same shape from its own entity.
 /// </para>
 /// </summary>
 public class ProduceTitleForEventHandler(
@@ -53,7 +52,7 @@ public class ProduceTitleForEventHandler(
         var carrier = await ResolveCarrierAsync(broadcaster, ct);
 
         var artwork = await BuildArtworkAsync(sportingEvent, league, homeTeam, awayTeam, carrier.LogoSource, ct);
-        var cast = await BuildCastAsync(sportingEvent, ct);
+        var cast = BuildCast(sportingEvent);
 
         var request = new TitleRequest
         {
@@ -140,7 +139,7 @@ public class ProduceTitleForEventHandler(
     }
 
     private async Task<int?> MaterializeAsync(
-        Media.ImageRef? slot, ImagePurpose purpose, CancellationToken ct)
+        ImageRef? slot, ImagePurpose purpose, CancellationToken ct)
     {
         if (slot is null)
             return null;
@@ -150,41 +149,14 @@ public class ProduceTitleForEventHandler(
             : await mediator.Send(new MaterializeImageCommand(slot, purpose), ct);
     }
 
-    private async Task<List<TitleCastRequest>> BuildCastAsync(SportingEvent sportingEvent, CancellationToken ct)
-    {
-        var ordered = sportingEvent.Cast.OrderBy(c => c.Order).ToList();
-
-        if (ordered.Count == 0)
-            return [];
-
-        var athletes = (await workspace.Load(
-                new AthletesByIdsSpec([.. ordered.Select(c => c.AthleteId)]), ct))
-            .ToDictionary(a => a.Id);
-
-        var cast = new List<TitleCastRequest>();
-
-        foreach (var member in ordered)
-        {
-            if (!athletes.TryGetValue(member.AthleteId, out var athlete))
-                continue;
-
-            var teamName = athlete.TeamId == sportingEvent.HomeTeamId
-                ? sportingEvent.HomeTeamName
-                : athlete.TeamId == sportingEvent.AwayTeamId
-                    ? sportingEvent.AwayTeamName
-                    : null;
-
-            var role = string.Join(", ", new[] { athlete.Position, teamName }
-                .Where(part => !string.IsNullOrWhiteSpace(part)));
-
-            cast.Add(new TitleCastRequest(
-                athlete.DisplayName,
-                role.Length > 0 ? role : null,
-                athlete.Headshot.ImageId));
-        }
-
-        return cast;
-    }
+    /// <summary>
+    /// The event already holds its cast as names, roles and image ids — the ranker resolved all of
+    /// that when the event was scraped — so this is a projection, not a lookup.
+    /// </summary>
+    private static List<TitleCastRequest> BuildCast(SportingEvent sportingEvent) =>
+        [.. sportingEvent.Cast
+            .OrderBy(member => member.Order)
+            .Select(member => new TitleCastRequest(member.Name, member.Role, member.HeadshotImageId))];
 
     private static string SeasonLabel(int? seasonType) => seasonType switch
     {

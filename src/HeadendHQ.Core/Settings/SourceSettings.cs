@@ -29,9 +29,6 @@ public class SourceSettings
     public string UserAgent { get; private set; } =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
 
-    /// <summary>How long a cached team roster stays good before a scrape re-fetches it.</summary>
-    public int RosterTtlDays { get; private set; } = 3;
-
     /// <summary>
     /// Which sports the initial catalog discovery walks leagues for. Every sport is still recorded so
     /// the UI can offer it, but only these have their (often hundreds of) leagues enumerated. Anything
@@ -48,7 +45,7 @@ public class SourceSettings
 
     public void Configure(
         int? requestsPerMinute, int? minDelayMs, int? jitterMs, int? maxConcurrency,
-        int? perRunRequestBudget, string? userAgent, int? rosterTtlDays,
+        int? perRunRequestBudget, string? userAgent,
         IEnumerable<string>? discoverySportSlugs = null, int? maxTeamLogoLookupsPerRun = null)
     {
         if (requestsPerMinute is > 0) RequestsPerMinute = requestsPerMinute.Value;
@@ -57,7 +54,6 @@ public class SourceSettings
         if (maxConcurrency is > 0) MaxConcurrency = maxConcurrency.Value;
         if (perRunRequestBudget is > 0) PerRunRequestBudget = perRunRequestBudget.Value;
         if (!string.IsNullOrWhiteSpace(userAgent)) UserAgent = userAgent;
-        if (rosterTtlDays is >= 0) RosterTtlDays = rosterTtlDays.Value;
         if (maxTeamLogoLookupsPerRun is >= 0) MaxTeamLogoLookupsPerRun = maxTeamLogoLookupsPerRun.Value;
 
         if (discoverySportSlugs is not null)

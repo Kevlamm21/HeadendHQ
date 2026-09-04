@@ -53,7 +53,7 @@ public static class SettingsEndpoints
             Results.Ok(await mediator.Send(new GetSourceSettingsQuery(), ct)))
             .WithName("GetSourceSettings")
             .WithSummary("Get source settings")
-            .WithDescription("How politely we talk to upstream sources: request rate, spacing, jitter, concurrency, per-run budget, user agent, and roster cache TTL.");
+            .WithDescription("How politely we talk to upstream sources: request rate, spacing, jitter, concurrency, per-run budget, and user agent.");
 
         group.MapPatch("/source", async (
             [FromBody] UpdateSourceSettingsCommand command,
