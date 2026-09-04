@@ -440,8 +440,17 @@ namespace HeadendHQ.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ETag")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FetchedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Height")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("LeagueId")
                         .HasColumnType("INTEGER");
@@ -467,11 +476,11 @@ namespace HeadendHQ.Data.Migrations
                     b.HasIndex("Sha256")
                         .IsUnique();
 
-                    b.HasIndex("SourceUrl")
+                    b.HasIndex("Purpose", "LeagueId");
+
+                    b.HasIndex("SourceUrl", "Purpose")
                         .IsUnique()
                         .HasFilter("\"SourceUrl\" IS NOT NULL");
-
-                    b.HasIndex("Purpose", "LeagueId");
 
                     b.ToTable("Images", (string)null);
                 });
@@ -612,56 +621,28 @@ namespace HeadendHQ.Data.Migrations
                             b1.Property<int>("BroadcasterId")
                                 .HasColumnType("INTEGER");
 
+                            b1.Property<int>("ImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Label")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<int>("Origin")
+                                .HasColumnType("INTEGER");
+
                             b1.Property<string>("Variant")
                                 .IsRequired()
                                 .HasColumnType("TEXT");
 
                             b1.HasKey("Id");
 
-                            b1.HasIndex("BroadcasterId", "Variant")
+                            b1.HasIndex("BroadcasterId", "Variant", "Label")
                                 .IsUnique();
 
                             b1.ToTable("BroadcasterLogos", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("BroadcasterId");
-
-                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
-                                {
-                                    b2.Property<int>("BroadcasterLogoId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<string>("ETag")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<int?>("ImageId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceKey")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceUrl")
-                                        .HasColumnType("TEXT");
-
-                                    b2.HasKey("BroadcasterLogoId");
-
-                                    b2.ToTable("BroadcasterLogos");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("BroadcasterLogoId");
-                                });
-
-                            b1.Navigation("Image")
-                                .IsRequired();
                         });
 
                     b.Navigation("Logos");
@@ -675,12 +656,17 @@ namespace HeadendHQ.Data.Migrations
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("INTEGER");
 
+                            b1.Property<int>("ImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Label")
+                                .HasColumnType("TEXT");
+
                             b1.Property<int>("LeagueId")
                                 .HasColumnType("INTEGER");
 
-                            b1.Property<string>("Rel")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
+                            b1.Property<int>("Origin")
+                                .HasColumnType("INTEGER");
 
                             b1.Property<string>("Variant")
                                 .IsRequired()
@@ -688,56 +674,22 @@ namespace HeadendHQ.Data.Migrations
 
                             b1.HasKey("Id");
 
-                            b1.HasIndex("LeagueId", "Variant", "Rel")
+                            b1.HasIndex("LeagueId", "Variant", "Label")
                                 .IsUnique();
 
                             b1.ToTable("LeagueLogos", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("LeagueId");
-
-                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
-                                {
-                                    b2.Property<int>("LeagueLogoId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<string>("ETag")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<int?>("ImageId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceKey")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceUrl")
-                                        .HasColumnType("TEXT");
-
-                                    b2.HasKey("LeagueLogoId");
-
-                                    b2.ToTable("LeagueLogos");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("LeagueLogoId");
-                                });
-
-                            b1.Navigation("Image")
-                                .IsRequired();
                         });
 
                     b.OwnsMany("HeadendHQ.Core.Catalog.LeagueWordmark", "Wordmarks", b1 =>
                         {
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<int>("ImageId")
                                 .HasColumnType("INTEGER");
 
                             b1.Property<int>("LeagueId")
@@ -756,43 +708,6 @@ namespace HeadendHQ.Data.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("LeagueId");
-
-                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
-                                {
-                                    b2.Property<int>("LeagueWordmarkId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<string>("ETag")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<int?>("ImageId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceKey")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceUrl")
-                                        .HasColumnType("TEXT");
-
-                                    b2.HasKey("LeagueWordmarkId");
-
-                                    b2.ToTable("LeagueWordmarks");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("LeagueWordmarkId");
-                                });
-
-                            b1.Navigation("Image")
-                                .IsRequired();
                         });
 
                     b.Navigation("Logos");
@@ -808,59 +723,31 @@ namespace HeadendHQ.Data.Migrations
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("INTEGER");
 
-                            b1.Property<string>("Rel")
-                                .IsRequired()
+                            b1.Property<int>("ImageId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Label")
                                 .HasColumnType("TEXT");
+
+                            b1.Property<int>("Origin")
+                                .HasColumnType("INTEGER");
 
                             b1.Property<int>("TeamId")
                                 .HasColumnType("INTEGER");
 
+                            b1.Property<string>("Variant")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
                             b1.HasKey("Id");
 
-                            b1.HasIndex("TeamId", "Rel")
+                            b1.HasIndex("TeamId", "Variant", "Label")
                                 .IsUnique();
 
                             b1.ToTable("TeamLogos", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("TeamId");
-
-                            b1.OwnsOne("HeadendHQ.Core.Media.ImageRef", "Image", b2 =>
-                                {
-                                    b2.Property<int>("TeamLogoId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<string>("ETag")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("FetchedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<int?>("ImageId")
-                                        .HasColumnType("INTEGER");
-
-                                    b2.Property<DateTimeOffset?>("LastModifiedUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceKey")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
-                                        .HasColumnType("TEXT");
-
-                                    b2.Property<string>("SourceUrl")
-                                        .HasColumnType("TEXT");
-
-                                    b2.HasKey("TeamLogoId");
-
-                                    b2.ToTable("TeamLogos");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("TeamLogoId");
-                                });
-
-                            b1.Navigation("Image")
-                                .IsRequired();
                         });
 
                     b.Navigation("Logos");

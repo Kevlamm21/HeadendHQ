@@ -7,9 +7,6 @@ namespace HeadendHQ.Core.Events.CommandHandlers;
 
 public record CreateTitlesForTodayCommand(int LeadDays = 0) : ICommand<int>;
 
-/// <summary>Maps one event into a title. Safe to call twice: an event that has one is skipped.</summary>
-public record ProduceTitleForEventCommand(Guid SportingEventId) : ICommand<Guid?>;
-
 /// <summary>
 /// The daily sweep: finds every event that is due and still has no title, and produces one.
 /// <para>

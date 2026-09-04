@@ -1,4 +1,5 @@
 using HeadendHQ.Core.Catalog.CommandHandlers;
+using HeadendHQ.Core.Catalog.Sports.CommandHandlers;
 using Mediator;
 using Microsoft.Extensions.Logging;
 

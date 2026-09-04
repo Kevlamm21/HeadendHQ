@@ -1,8 +1,10 @@
-using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Events.Specifications;
-using HeadendHQ.Core.Media;
+using HeadendHQ.Core.Catalog.Sports;
+using HeadendHQ.Core.Catalog.Teams;
+using HeadendHQ.Core.Catalog;
 using HeadendHQ.Core.Media.CommandHandlers;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
 using Mediator;

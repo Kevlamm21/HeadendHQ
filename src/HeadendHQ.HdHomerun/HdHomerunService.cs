@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Broadcasters;
 using HeadendHQ.Core.Iptv;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.HdHomerun.Settings;

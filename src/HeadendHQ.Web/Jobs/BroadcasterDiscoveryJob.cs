@@ -1,4 +1,4 @@
-using HeadendHQ.Core.Catalog.CommandHandlers;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 using Mediator;
 
 namespace HeadendHQ.Web.Jobs;

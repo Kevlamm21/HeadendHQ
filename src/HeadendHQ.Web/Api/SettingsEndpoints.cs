@@ -1,10 +1,6 @@
 using HeadendHQ.Core.Settings;
-using HeadendHQ.Core.Titles;
-
-using HeadendHQ.VodLauncher;
-using HeadendHQ.VodLauncher.Settings;
-using HeadendHQ.HdHomerun;
 using HeadendHQ.HdHomerun.Settings;
+using HeadendHQ.VodLauncher.Settings;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 

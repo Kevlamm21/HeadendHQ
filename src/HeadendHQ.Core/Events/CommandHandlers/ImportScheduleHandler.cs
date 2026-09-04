@@ -1,7 +1,11 @@
-using HeadendHQ.Core.Catalog;
-using HeadendHQ.Core.Catalog.CommandHandlers;
-using HeadendHQ.Core.Catalog.Specifications;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
+using HeadendHQ.Core.Catalog.Broadcasters.Specifications;
+using HeadendHQ.Core.Catalog.Broadcasters;
+using HeadendHQ.Core.Catalog.Leagues.Specifications;
+using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core.Catalog.Teams.Specifications;
+using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
@@ -225,13 +229,12 @@ public class ImportScheduleHandler(
         }
 
         // An unknown team should never block a scrape — a mid-season expansion or a college side we
-        // have not pulled yet still gets an event, with logos filled in by the next league refresh.
+        // have not pulled yet still gets an event. Its mark is left to the next league refresh: the
+        // schedule's competitor logos come from a bulk listing, which is exactly the source that
+        // cannot be trusted to hand back the right club's image.
         var team = new Team(league.Id, competitor.DisplayName);
         if (competitor.TeamExternalId is { Length: > 0 } newId)
             team.TrackSource(sourceKey, newId);
-
-        foreach (var candidate in competitor.Logos ?? [])
-            team.UpsertLogo(candidate.Rel, sourceKey, candidate.Url, candidate.UpdatedAtUtc);
 
         workspace.Add(team);
         logger.LogInformation("Created previously unseen team {Team} in {League}.",

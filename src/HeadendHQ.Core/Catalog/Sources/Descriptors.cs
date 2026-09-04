@@ -1,3 +1,5 @@
+using HeadendHQ.Core.Catalog.Broadcasters;
+
 namespace HeadendHQ.Core.Catalog.Sources;
 
 /// <summary>

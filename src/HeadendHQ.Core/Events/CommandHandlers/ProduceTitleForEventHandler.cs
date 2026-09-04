@@ -1,13 +1,17 @@
-using HeadendHQ.Core.Catalog;
-using HeadendHQ.Core.Media;
-using HeadendHQ.Core.Media.CommandHandlers;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
+using HeadendHQ.Core.Catalog.Broadcasters;
+using HeadendHQ.Core.Catalog.Leagues;
+using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Shared;
-using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
+using HeadendHQ.Core.Titles;
 using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Events.CommandHandlers;
+
+/// <summary>Maps one event into a title. Safe to call twice: an event that has one is skipped.</summary>
+public record ProduceTitleForEventCommand(Guid SportingEventId) : ICommand<Guid?>;
 
 /// <summary>
 /// The single place where the sports domain is flattened into a title.
@@ -113,24 +117,29 @@ public class ProduceTitleForEventHandler(
     }
 
     /// <summary>
-    /// Resolves each logo to an image id, downloading the bytes if this is the first time they have
-    /// actually been needed. Doing it here means the artwork composer only ever reads by id.
+    /// Flattens each catalog record's chosen mark to an image id. A logo row always has bytes, so
+    /// this is a read — the downloading happened when the league was followed, the team picked or the
+    /// broadcaster subscribed.
+    /// <para>
+    /// The one exception is a broadcaster that has never had artwork: the crawl skips it for the
+    /// ~1300 networks it walks, and a game airing on one is the first evidence it is worth holding.
+    /// </para>
     /// </summary>
     private async Task<TitleArtwork> BuildArtworkAsync(
         SportingEvent sportingEvent, League league, Team? homeTeam, Team? awayTeam,
         Broadcaster? broadcaster, CancellationToken ct)
     {
-        var homeLogoId = await MaterializeAsync(homeTeam?.PreferredLogo()?.Image, ImagePurpose.TeamLogo, ct);
-        var awayLogoId = await MaterializeAsync(awayTeam?.PreferredLogo()?.Image, ImagePurpose.TeamLogo, ct);
+        var homeLogoId = homeTeam?.PreferredLogo()?.ImageId;
+        var awayLogoId = awayTeam?.PreferredLogo()?.ImageId;
 
         // Variant first, so an NBA Cup game gets the Cup mark when one has been provided.
-        var badgeId = await MaterializeAsync(
-            league.LogoFor(sportingEvent.Variant)?.Image, ImagePurpose.LeagueLogo, ct);
+        var badgeId = league.LogoFor(sportingEvent.Variant)?.ImageId;
 
-        var providerId = await MaterializeAsync(
-            broadcaster?.PreferredLogo()?.Image, ImagePurpose.BroadcasterLogo, ct);
+        var providerId = broadcaster is null
+            ? null
+            : await ProviderLogoAsync(broadcaster, ct);
 
-        var wordmarkId = league.WordmarkFor(sportingEvent.Variant)?.Image.ImageId;
+        var wordmarkId = league.WordmarkFor(sportingEvent.Variant)?.ImageId;
 
         return TitleArtwork.Create(
             homeLogoId, awayLogoId,
@@ -138,15 +147,22 @@ public class ProduceTitleForEventHandler(
             badgeId, providerId, wordmarkId);
     }
 
-    private async Task<int?> MaterializeAsync(
-        ImageRef? slot, ImagePurpose purpose, CancellationToken ct)
+    private async Task<int?> ProviderLogoAsync(Broadcaster broadcaster, CancellationToken ct)
     {
-        if (slot is null)
-            return null;
+        if (broadcaster.PreferredLogo() is { } held)
+            return held.ImageId;
 
-        return slot.IsMaterialized
-            ? slot.ImageId
-            : await mediator.Send(new MaterializeImageCommand(slot, purpose), ct);
+        // A missing mark must never fail the title that wanted it; artwork falls back.
+        try
+        {
+            await mediator.Send(new RefreshBroadcasterLogosCommand(broadcaster.Id), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to resolve artwork for broadcaster {Slug}.", broadcaster.Slug);
+        }
+
+        return broadcaster.PreferredLogo()?.ImageId;
     }
 
     /// <summary>

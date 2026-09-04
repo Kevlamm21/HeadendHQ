@@ -24,21 +24,25 @@ public class ImageByIdSpec(int id) : ISpecification<Image>
 /// <summary>
 /// The bytes we already hold for an upstream URL. Checked before a download, which is what keeps a
 /// player's headshot to one request ever rather than one per game.
+/// <para>
+/// Keyed by purpose as well as address, because normalization is chosen by purpose: the same URL
+/// fetched as a headshot and as a team logo produces different pixels, so they are different rows.
+/// </para>
 /// </summary>
-public class ImageBySourceUrlSpec(string sourceUrl) : ISpecification<Image>
+public class ImageBySourceUrlSpec(string sourceUrl, ImagePurpose purpose) : ISpecification<Image>
 {
     public IQueryable<Image> Apply(IQueryable<Image> queryable) =>
-        queryable.Where(i => i.SourceUrl == sourceUrl);
+        queryable.Where(i => i.SourceUrl == sourceUrl && i.Purpose == purpose);
 }
 
 /// <summary>
 /// The same question as <see cref="ImageBySourceUrlSpec"/>, answered without the BLOB. This runs
 /// once per billed player per event, and all the caller wants back is an id.
 /// </summary>
-public class ImageIdBySourceUrlSpec(string sourceUrl) : ISpecification<Image, int>
+public class ImageIdBySourceUrlSpec(string sourceUrl, ImagePurpose purpose) : ISpecification<Image, int>
 {
     public IQueryable<int> Apply(IQueryable<Image> queryable) =>
-        queryable.Where(i => i.SourceUrl == sourceUrl).Select(i => i.Id);
+        queryable.Where(i => i.SourceUrl == sourceUrl && i.Purpose == purpose).Select(i => i.Id);
 }
 
 /// <summary>

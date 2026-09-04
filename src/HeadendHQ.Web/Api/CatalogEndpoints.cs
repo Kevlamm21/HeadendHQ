@@ -1,8 +1,11 @@
 using Hangfire;
-using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 using HeadendHQ.Core.Catalog.CommandHandlers;
-using HeadendHQ.Core.Media;
+using HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
+using HeadendHQ.Core.Catalog.Sports.CommandHandlers;
+using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 using HeadendHQ.Core.Media.CommandHandlers;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Web.Jobs;
 using Mediator;
 
@@ -29,7 +32,9 @@ public static class CatalogEndpoints
             Results.Ok(await mediator.Send(new FollowLeagueCommand(id, body.IsFollowed), ct)))
             .WithName("FollowLeague")
             .WithSummary("Follow or unfollow a league")
-            .WithDescription("Following a league pulls its teams and league logos on first use.");
+            .WithDescription(
+                "Following a league pulls its teams and downloads its own mark. The league catalog records no artwork — "
+                + "356 leagues would mean 356 downloads for the handful anyone follows — so this is the first moment it is fetched.");
 
         catalog.MapGet("/leagues/{id:int}/teams", async (int id, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetTeamsQuery(id), ct)))
@@ -76,7 +81,9 @@ public static class CatalogEndpoints
             Results.Ok(new { teams = await mediator.Send(new RefreshLeagueTeamsCommand(id, withLogos ?? false), ct) }))
             .WithName("RefreshLeagueTeams")
             .WithSummary("Re-pull a league's teams")
-            .WithDescription("One upstream request returns every team with colours and logo variants.");
+            .WithDescription(
+                "One upstream request returns every team with colours and logo variants. Teams with no mark yet get one either way; "
+                + "withLogos=true additionally re-checks the marks already held, which an ordinary refresh skips.");
 
         catalog.MapPatch("/teams/{id:int}", async (int id, UpdateTeamRequest body, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new UpdateTeamCommand(
@@ -157,7 +164,7 @@ public static class CatalogEndpoints
             Results.Ok(await mediator.Send(new UploadLeagueLogoOverrideCommand(id, variant, await ReadBytesAsync(logo, ct)), ct)))
             .WithName("UploadLeagueLogoOverride")
             .WithSummary("Replace a league logo")
-            .WithDescription("A hand-uploaded image is never overwritten by a later refresh.")
+            .WithDescription("A hand-uploaded image is never overwritten by a later refresh, and a refresh will not spend a request on one.")
             .DisableAntiforgery();
 
         uploads.MapPut("/teams/{id:int}/logos/{rel}", async (
