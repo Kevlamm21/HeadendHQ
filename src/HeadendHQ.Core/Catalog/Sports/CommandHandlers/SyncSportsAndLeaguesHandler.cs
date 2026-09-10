@@ -1,7 +1,6 @@
 using HeadendHQ.Core.Catalog.Leagues.Specifications;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Catalog.Specifications;
 using HeadendHQ.Core.Catalog.Sports.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
@@ -18,65 +17,44 @@ namespace HeadendHQ.Core.Catalog.Sports.CommandHandlers;
 /// follows. Artwork arrives when a league is actually followed, via <see cref="RefreshLeagueLogosCommand"/>.
 /// </para>
 /// <para>
-/// Checkpointed per sport so an interrupted run resumes instead of starting over, and idempotent so
-/// resuming cannot duplicate anything.
+/// Idempotent: existing rows are matched by slug and updated in place, so a re-run corrects drift
+/// without duplicating anything. Rows are flushed per sport as the walk proceeds.
 /// </para>
 /// </summary>
-public record SyncSportsAndLeaguesCommand : ICommand<CatalogSyncState>;
+public record SyncSportsAndLeaguesCommand : ICommand<SyncCatalogResult>;
+
+public record SyncCatalogResult(int SportsExamined, int LeaguesUpserted);
 
 public class SyncSportsAndLeaguesHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
     ISportsCatalogSource source,
     ILogger<SyncSportsAndLeaguesHandler> logger)
-    : ICommandHandler<SyncSportsAndLeaguesCommand, CatalogSyncState>
+    : ICommandHandler<SyncSportsAndLeaguesCommand, SyncCatalogResult>
 {
-    public async ValueTask<CatalogSyncState> Handle(SyncSportsAndLeaguesCommand command, CancellationToken ct)
+    public async ValueTask<SyncCatalogResult> Handle(SyncSportsAndLeaguesCommand command, CancellationToken ct)
     {
-        var state = await workspace.LoadSingleOrDefault(new CatalogSyncStateSpec(), ct)
-            ?? throw new InvalidOperationException("CatalogSyncState not found.");
+        var sports = await source.GetSportsAsync(ct);
+        logger.LogInformation("Catalog sync: {Count} sport(s) from {Source}.", sports.Count, source.SourceKey);
 
-        state.Begin();
-        state.EnterStage("Sports");
-        await unitOfWork.SaveChanges(ct);
+        var leaguesUpserted = 0;
 
-        try
+        foreach (var descriptor in sports)
         {
-            var sports = await source.GetSportsAsync(ct);
-            logger.LogInformation("Catalog sync: {Count} sport(s) from {Source}.", sports.Count, source.SourceKey);
+            // Every sport is recorded whether or not we walk it, so a sport outside the
+            // discovery set can still be pulled on demand later without a second discovery of
+            // the sport list itself.
+            var sport = await UpsertSportAsync(descriptor, ct);
 
-            foreach (var descriptor in sports)
-            {
-                // Every sport is recorded whether or not we walk it, so a sport outside the
-                // discovery set can still be pulled on demand later without a second discovery of
-                // the sport list itself.
-                var sport = await UpsertSportAsync(descriptor, ct);
+            if (!SourceSettings.CoversSport(descriptor.Slug))
+                continue;
 
-                if (!SourceSettings.CoversSport(descriptor.Slug))
-                    continue;
-
-                if (state.IsLeagueCompleted(descriptor.Slug))
-                    continue;
-
-                state.EnterStage($"Leagues:{descriptor.Slug}");
-                await SyncLeaguesAsync(sport, descriptor.Slug, ct);
-
-                // Checkpointed and flushed per sport, so a crash costs one sport, not the whole run.
-                state.MarkLeagueCompleted(descriptor.Slug);
-                await unitOfWork.SaveChanges(ct);
-            }
-
-            state.Complete();
-            logger.LogInformation("Catalog sync complete.");
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // The completion marker is deliberately not set, so the next start resumes.
-            state.Fail(ex.Message);
-            logger.LogError(ex, "Catalog sync failed; it will resume on the next run.");
+            leaguesUpserted += await SyncLeaguesAsync(sport, descriptor.Slug, ct);
+            await unitOfWork.SaveChanges(ct);
         }
 
-        return state;
+        logger.LogInformation("Catalog sync complete.");
+        return new SyncCatalogResult(sports.Count, leaguesUpserted);
     }
 
     private async Task<Sport> UpsertSportAsync(SportDescriptor descriptor, CancellationToken ct)
@@ -100,7 +78,7 @@ public class SyncSportsAndLeaguesHandler(
         return sport;
     }
 
-    private async Task SyncLeaguesAsync(Sport sport, string sportSlug, CancellationToken ct)
+    private async Task<int> SyncLeaguesAsync(Sport sport, string sportSlug, CancellationToken ct)
     {
         var leagues = await source.GetLeaguesAsync(sportSlug, ct);
 
@@ -119,5 +97,6 @@ public class SyncSportsAndLeaguesHandler(
         }
 
         logger.LogInformation("Catalog sync: {Count} league(s) for {Sport}.", leagues.Count, sportSlug);
+        return leagues.Count;
     }
 }

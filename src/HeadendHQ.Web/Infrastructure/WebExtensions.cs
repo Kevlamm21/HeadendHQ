@@ -1,7 +1,5 @@
 using Hangfire;
-using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Web.Jobs;
-using Mediator;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,11 +21,13 @@ public static class WebExtensions
     /// <para>
     /// Storage is in-memory, so this runs on every boot by design — <c>AddOrUpdate</c> is keyed by
     /// job id and simply overwrites, which also means a changed cron expression takes effect on
-    /// restart rather than leaving a stale schedule behind. The seed is enqueued unconditionally and
-    /// decides for itself whether there is anything to do.
+    /// restart rather than leaving a stale schedule behind. The catalog seed and the broadcaster
+    /// crawl are one-time work: they are enqueued only when <paramref name="freshDatabase"/> is set,
+    /// i.e. the database was just created. On an existing database neither runs unless triggered by
+    /// hand (<c>POST /catalog/sync</c>, <c>POST /catalog/broadcasters/discover</c>).
     /// </para>
     /// </summary>
-    public static void UseJobs(this WebApplication app)
+    public static void UseJobs(this WebApplication app, bool freshDatabase)
     {
         var schedule = app.Configuration["NightlyJob:CronSchedule"] ?? DefaultNightlySchedule;
 
@@ -40,17 +40,10 @@ public static class WebExtensions
         if (bool.TryParse(app.Configuration["NightlyJob:RunOnStartup"], out var runOnStartup) && runOnStartup)
             BackgroundJob.Enqueue<NightlyJob>(job => job.RunAsync(CancellationToken.None));
 
-        BackgroundJob.Enqueue<CatalogSeedJob>(job => job.RunAsync(CancellationToken.None));
-
-        // The broadcaster crawl owes a run whenever it has never completed — a fresh database, or a
-        // crawl that was interrupted (both leave the marker unset). A completed crawl is re-enqueued
-        // nightly by NightlyJob and costs only the two index requests.
-        using (var scope = app.Services.CreateScope())
+        if (freshDatabase)
         {
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-            var state = mediator.Send(new GetCatalogSyncStateQuery()).AsTask().GetAwaiter().GetResult();
-            if (state?.LastBroadcasterRefreshUtc is null)
-                BackgroundJob.Enqueue<BroadcasterDiscoveryJob>(job => job.RunAsync(CancellationToken.None));
+            BackgroundJob.Enqueue<CatalogSeedJob>(job => job.RunAsync(CancellationToken.None));
+            BackgroundJob.Enqueue<BroadcasterDiscoveryJob>(job => job.RunAsync(CancellationToken.None));
         }
     }
 }

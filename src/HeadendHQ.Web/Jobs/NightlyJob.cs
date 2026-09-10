@@ -102,17 +102,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "Broadcaster detail refresh failed.");
         }
 
-        // A completed crawl is two index requests; otherwise it resumes where it stopped and also
-        // picks up any networks ESPN has added. Its own job so it gets its own request budget.
-        try
-        {
-            BackgroundJob.Enqueue<BroadcasterDiscoveryJob>(job => job.RunAsync(CancellationToken.None));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Failed to enqueue broadcaster discovery.");
-        }
-
         // Detail collection is queued per event by the scrape. Completed detail jobs produce
         // today's titles themselves; this sweep catches anything that was already ready at startup.
         try

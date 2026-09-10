@@ -171,7 +171,8 @@ internal sealed class EspnEventDetailSource(
         new(athlete.Id,
             athlete.DisplayName ?? "Unknown",
             athlete.ShortName,
-            athlete.Position?.DisplayName ?? athlete.Position?.Abbreviation,
+            // Abbreviation first: CastRanker's position weights are keyed by abbreviation ("QB", "WR").
+            athlete.Position?.Abbreviation ?? athlete.Position?.DisplayName,
             athlete.Jersey,
             athlete.Experience?.Years,
             athlete.Headshot?.Href,

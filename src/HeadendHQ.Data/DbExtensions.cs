@@ -1,5 +1,4 @@
 
-using HeadendHQ.Core.Catalog;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Data.Shared;
@@ -28,7 +27,12 @@ public static class DbExtensions
         builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork<AppDbContext>>();
     }
 
-    public static async Task InitializeDatabase(this WebApplication app)
+    /// <summary>
+    /// Applies migrations and seeds the singleton rows. Returns <c>true</c> when this was a brand-new
+    /// database (no migrations had been applied yet) — the caller uses that to decide whether to run
+    /// the one-time catalog seed and broadcaster crawl.
+    /// </summary>
+    public static async Task<bool> InitializeDatabase(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -36,6 +40,10 @@ public static class DbExtensions
 
         try
         {
+            // An empty history table (or a missing database file) means nothing has ever been
+            // applied here — this is the first run against this volume.
+            var freshDatabase = !(await db.Database.GetAppliedMigrationsAsync()).Any();
+
             await db.Database.MigrateAsync();
 
             if (!await db.Set<GlobalSettings>().AnyAsync())
@@ -50,12 +58,9 @@ public static class DbExtensions
             if (!await db.Set<HdHomerunSettings>().AnyAsync())
                 db.Add(new HdHomerunSettings());
 
-            // Only the marker row is created here. Catalog discovery itself is deliberately not run
-            // from startup: it needs the network, takes minutes, and must not delay the app coming up.
-            if (!await db.Set<Core.Catalog.CatalogSyncState>().AnyAsync())
-                db.Add(new Core.Catalog.CatalogSyncState());
-
             await db.SaveChangesAsync();
+
+            return freshDatabase;
         }
         catch (Exception ex)
         {

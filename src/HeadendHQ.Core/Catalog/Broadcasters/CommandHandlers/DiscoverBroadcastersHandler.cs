@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Catalog.Specifications;
 using HeadendHQ.Core.Iptv;
 using HeadendHQ.Core.Shared;
 using Mediator;
@@ -12,9 +11,10 @@ namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 /// variants — so the settings list is complete before a game has aired on each one.
 /// <para>
 /// The index is two requests; each record is one more, ~1311 in total, which fits one run's request
-/// budget. An interrupted crawl resumes by skipping ids already on a row, and the completion marker
-/// (<see cref="CatalogSyncState.LastBroadcasterRefreshUtc"/>) is only set once the index end is
-/// reached, so a truncated crawl is retried rather than stranding every network past the cut-off.
+/// budget. An interrupted crawl resumes by skipping ids already on a row, so re-running it after a
+/// truncated pass picks up where it stopped rather than stranding every network past the cut-off.
+/// It runs automatically once, when the database is first created; after that it is manual
+/// (<c>POST /catalog/broadcasters/discover</c>).
 /// </para>
 /// </summary>
 public record DiscoverBroadcastersCommand(int? Max = null) : ICommand<DiscoverBroadcastersResult>;
@@ -33,9 +33,6 @@ public class DiscoverBroadcastersHandler(
 
     public async ValueTask<DiscoverBroadcastersResult> Handle(DiscoverBroadcastersCommand command, CancellationToken ct)
     {
-        var state = await workspace.LoadSingleOrDefault(new CatalogSyncStateSpec(), ct)
-            ?? throw new InvalidOperationException("CatalogSyncState not found.");
-
         var lineup = LineupIndex.Build(await workspace.Load(AllSpecification<IptvChannel>.Instance, ct));
 
         var all = await workspace.LoadAll<Broadcaster>(ct);
@@ -131,9 +128,6 @@ public class DiscoverBroadcastersHandler(
                 "Broadcaster crawl stopped after {Examined} record(s); it resumes on the next run.", examined);
             return new DiscoverBroadcastersResult(examined, created, logosAdded, SweepComplete: false);
         }
-
-        if (!cappedOut)
-            state.MarkBroadcastersRefreshed();
 
         await unitOfWork.SaveChanges(ct);
 

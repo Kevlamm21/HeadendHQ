@@ -121,7 +121,8 @@ internal sealed class EspnSportsCatalogSource(
                     ExternalId: a.Id,
                     DisplayName: a.DisplayName ?? "Unknown",
                     ShortName: a.ShortName,
-                    Position: a.Position?.DisplayName ?? a.Position?.Abbreviation,
+                    // Abbreviation first: CastRanker's position weights are keyed by abbreviation ("QB", "WR").
+                    Position: a.Position?.Abbreviation ?? a.Position?.DisplayName,
                     Jersey: a.Jersey,
                     ExperienceYears: a.Experience?.Years,
                     HeadshotUrl: a.Headshot?.Href,

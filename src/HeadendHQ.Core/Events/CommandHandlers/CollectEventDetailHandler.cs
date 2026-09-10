@@ -60,8 +60,12 @@ public class CollectEventDetailHandler(
         var billed = CastRanker.Rank(candidates, sport.Slug, settings.MaxAthletesPerTeam);
         var cast = new List<BilledAthlete>();
 
+        var homeLabel = await TeamLabelAsync(sportingEvent.HomeTeamId, sportingEvent.HomeTeamName, ct);
+        var awayLabel = await TeamLabelAsync(sportingEvent.AwayTeamId, sportingEvent.AwayTeamName, ct);
+
         foreach (var candidate in billed)
-            cast.Add(await BillAsync(candidate, sportingEvent, league.Id, ct));
+            cast.Add(await BillAsync(
+                candidate, candidate.IsHome ? homeLabel : awayLabel, league.Id, ct));
 
         sportingEvent.SetCast(cast);
 
@@ -91,17 +95,31 @@ public class CollectEventDetailHandler(
     }
 
     /// <summary>
+    /// Resolves a team to the short label used in billed roles — the nickname ("Browns"), so a
+    /// role reads "QB - Browns". Falls back to the full name only until the next league team refresh
+    /// fills in the nickname.
+    /// </summary>
+    private async Task<string> TeamLabelAsync(int? teamId, string storedName, CancellationToken ct)
+    {
+        if (teamId is not { } id)
+            return storedName;
+
+        var team = await workspace.LoadById<Team, int>(id, ct);
+
+        return team.Nickname is { Length: > 0 } nickname ? nickname
+            : team.ShortDisplayName is { Length: > 0 } shortName ? shortName
+            : team.DisplayName;
+    }
+
+    /// <summary>
     /// Flattens one ranked candidate into the row the title will be built from, downloading their
     /// face if this is the first time anyone has needed it.
     /// </summary>
     private async Task<BilledAthlete> BillAsync(
-        CastCandidate candidate, SportingEvent sportingEvent, int leagueId, CancellationToken ct)
+        CastCandidate candidate, string teamLabel, int leagueId, CancellationToken ct)
     {
-        // The side is known here, so the team half of the role comes off the event rather than off
-        // the source's naming — it then reads the same as the event's own team names.
-        var teamName = candidate.IsHome ? sportingEvent.HomeTeamName : sportingEvent.AwayTeamName;
-
-        var role = string.Join(", ", new[] { candidate.Athlete.Position, teamName }
+        // Position abbreviation plus the team nickname: "QB - Browns".
+        var role = string.Join(" - ", new[] { candidate.Athlete.Position, teamLabel }
             .Where(part => !string.IsNullOrWhiteSpace(part)));
 
         // Tagged with the league so a media-day refresh can wipe one league's faces and no others.

@@ -1,6 +1,5 @@
 using Hangfire;
 using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
-using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 using HeadendHQ.Core.Catalog.Sports.CommandHandlers;
 using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
@@ -96,17 +95,10 @@ public static class CatalogEndpoints
             .WithDescription("Reads the source record — and therefore the logo — for every broadcaster that has never had one.");
 
         catalog.MapPost("/sync", async (IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new ForceCatalogSyncCommand(), ct)))
+            Results.Ok(await mediator.Send(new SyncSportsAndLeaguesCommand(), ct)))
             .WithName("RunCatalogSync")
             .WithSummary("Force a full catalog re-sync")
             .WithDescription("Walks every sport and league again. Existing rows are updated in place, not duplicated.");
-        
-        catalog.MapGet("/sync/status", async (IMediator mediator, CancellationToken ct) =>
-            await mediator.Send(new GetCatalogSyncStateQuery(), ct) is { } state
-                ? Results.Ok(state)
-                : Results.NotFound())
-            .WithName("GetCatalogSyncStatus")
-            .WithSummary("Catalog discovery status");
 
          catalog.MapDelete("/leagues/{id:int}/headshots", async (int id, IMediator mediator, CancellationToken ct) =>
         {

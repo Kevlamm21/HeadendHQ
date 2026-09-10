@@ -34,11 +34,11 @@ builder.ConfigureHangfire();
 
 var app = builder.Build();
 
-await app.InitializeDatabase();
+var freshDatabase = await app.InitializeDatabase();
 
 app.UseAspNet();
 app.UseHangfireDashboard();
-app.UseJobs();
+app.UseJobs(freshDatabase);
 app.MapApi();
 
 app.Run();

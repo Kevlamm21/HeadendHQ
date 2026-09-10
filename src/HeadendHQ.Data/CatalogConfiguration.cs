@@ -100,13 +100,3 @@ internal class BroadcasterConfiguration : IEntityTypeConfiguration<Broadcaster>
         });
     }
 }
-
-internal class CatalogSyncStateConfiguration : IEntityTypeConfiguration<CatalogSyncState>
-{
-    public void Configure(EntityTypeBuilder<CatalogSyncState> builder)
-    {
-        builder.ToTable("CatalogSyncState");
-        builder.HasKey(e => e.Id);
-        builder.PrimitiveCollection(e => e.CompletedLeagueSlugs);
-    }
-}
