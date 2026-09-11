@@ -95,6 +95,6 @@ public static class TitleEndpoints
             .DisableAntiforgery()
             .WithName("UploadTitleImages")
             .WithSummary("Upload title artwork")
-            .WithDescription("Uploads poster, background, thumbnail, and/or wordmark images for a title. Files are normalized and saved to the title's VOD folder.");
+            .WithDescription("Uploads poster, background, thumbnail, and/or wordmark images for a title. Images are normalized and stored in the media library; the title references them by id.");
     }
 }

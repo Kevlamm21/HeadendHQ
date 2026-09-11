@@ -14,5 +14,8 @@ public enum ImagePurpose
     LeagueLogo,
     BroadcasterLogo,
     Wordmark,
-    Headshot
+    Headshot,
+    Poster,
+    Background,
+    Thumbnail
 }

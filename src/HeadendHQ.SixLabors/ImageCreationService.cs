@@ -1,8 +1,16 @@
 using HeadendHQ.Core;
+using HeadendHQ.Core.Catalog.Broadcasters;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
+using HeadendHQ.Core.Catalog.Leagues;
+using HeadendHQ.Core.Catalog.Teams;
+using HeadendHQ.Core.Events;
+using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
-using HeadendHQ.Core.Titles;
+using Mediator;
+using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
+using ImagePurpose = HeadendHQ.Core.Media.ImagePurpose;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -11,42 +19,88 @@ using SixLabors.ImageSharp.Processing;
 
 namespace HeadendHQ.SixLabors;
 
-public class ImageCreationService(IReadModel readModel) : IImageCreationService
+public class ImageCreationService(
+    IWorkspace workspace, IReadModel readModel, IMediator mediator, ILogger<ImageCreationService> logger)
+    : IImageCreationService
 {
-    public async Task CreatePosterAsync(Title title, CancellationToken ct = default)
-    {
-        await RenderAsync(
-            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Poster(title.Name)),
-            title, isVertical: true, ct);
-    }
+    public Task<int> CreatePosterAsync(Guid sourceId, CancellationToken ct = default) =>
+        ComposeAsync(sourceId, isVertical: true, ImagePurpose.Poster, ct);
 
-    public async Task CreateThumbAsync(Title title, CancellationToken ct = default)
-    {
-        await RenderAsync(
-            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Thumb(title.Name)),
-            title, isVertical: false, ct);
-    }
+    public Task<int> CreateThumbAsync(Guid sourceId, CancellationToken ct = default) =>
+        ComposeAsync(sourceId, isVertical: false, ImagePurpose.Thumbnail, ct);
 
-    public async Task CreateBackdropAsync(Title title, CancellationToken ct = default)
-    {
-        await RenderAsync(
-            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.Backdrop(title.Name)),
-            title, isVertical: false, ct);
-    }
+    public Task<int> CreateBackdropAsync(Guid sourceId, CancellationToken ct = default) =>
+        ComposeAsync(sourceId, isVertical: false, ImagePurpose.Background, ct);
 
-    public async Task CreateClearLogoAsync(Title title, CancellationToken ct = default)
+    private async Task<int> ComposeAsync(Guid sourceId, bool isVertical, ImagePurpose purpose, CancellationToken ct)
     {
-        if (await LoadBytesAsync(title.Artwork.WordmarkImageId, ct) is not { Length: > 0 } logoData)
-            return;
-
-        await File.WriteAllBytesAsync(
-            System.IO.Path.Combine(GetFolder(title), TitleArtworkFiles.ClearLogo(title.Name)), logoData, ct);
+        var ingredients = await ResolveIngredientsAsync(sourceId, ct);
+        var bytes = await RenderAsync(ingredients, isVertical, ct);
+        return await mediator.Send(new UploadImageCommand(bytes, purpose), ct);
     }
 
     /// <summary>
-    /// Every ingredient is already an image id on the title, so composing artwork is a handful of
-    /// primary-key reads. Nothing here knows what a team, a league or a broadcaster is.
+    /// Resolved ingredients for the split-card render — image ids into the media store plus colour
+    /// hex. All optional; the card falls back when a piece is missing.
     /// </summary>
+    private record Ingredients(
+        int? PrimaryLogoImageId,
+        int? SecondaryLogoImageId,
+        string? PrimaryColorHex,
+        string? SecondaryColorHex,
+        int? BadgeImageId,
+        int? ProviderLogoImageId);
+
+    private async Task<Ingredients> ResolveIngredientsAsync(Guid sourceId, CancellationToken ct)
+    {
+        var ev = await workspace.LoadById<SportingEvent, Guid>(sourceId, ct);
+        var league = await workspace.LoadById<League, int>(ev.LeagueId, ct);
+        var home = ev.HomeTeamId is { } h ? await workspace.LoadById<Team, int>(h, ct) : null;
+        var away = ev.AwayTeamId is { } a ? await workspace.LoadById<Team, int>(a, ct) : null;
+        var broadcaster = ev.BroadcasterId is { } b ? await workspace.LoadById<Broadcaster, int>(b, ct) : null;
+        var logoSource = await ResolveCarrierLogoSourceAsync(broadcaster, ct);
+
+        return new Ingredients(
+            home?.PreferredLogo()?.ImageId,
+            away?.PreferredLogo()?.ImageId,
+            home?.PrimaryColorHex,
+            away?.PrimaryColorHex,
+            league.LogoFor(ev.Variant)?.ImageId,
+            logoSource is null ? null : await ProviderLogoAsync(logoSource, ct));
+    }
+
+    private async Task<Broadcaster?> ResolveCarrierLogoSourceAsync(Broadcaster? broadcaster, CancellationToken ct)
+    {
+        if (broadcaster is null)
+            return null;
+
+        if (broadcaster.IptvGuideNumber is { Length: > 0 })
+            return broadcaster;
+
+        if (broadcaster.MapsToBroadcasterId is not { } targetId)
+            return broadcaster;
+
+        return await workspace.LoadById<Broadcaster, int>(targetId, ct);
+    }
+
+    private async Task<int?> ProviderLogoAsync(Broadcaster broadcaster, CancellationToken ct)
+    {
+        if (broadcaster.PreferredLogo() is { } held)
+            return held.ImageId;
+
+        try
+        {
+            await mediator.Send(new RefreshBroadcasterLogosCommand(broadcaster.Id), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to resolve artwork for broadcaster {Slug}.", broadcaster.Slug);
+        }
+
+        return broadcaster.PreferredLogo()?.ImageId;
+    }
+
+    /// <summary>Every ingredient is already an image id, so loading it is a primary-key read.</summary>
     private async Task<byte[]?> LoadBytesAsync(int? imageId, CancellationToken ct)
     {
         if (imageId is not { } id)
@@ -56,24 +110,18 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
         return image?.Bytes;
     }
 
-    private static string GetFolder(Title title) =>
-        title.VodLauncherPath ?? throw new InvalidOperationException(
-            $"Title '{title.Name}' ({title.Id}) has no VodLauncherPath — cannot write artwork.");
-
-    private async Task RenderAsync(string outputPath, Title title, bool isVertical, CancellationToken ct)
+    private async Task<byte[]> RenderAsync(Ingredients ingredients, bool isVertical, CancellationToken ct)
     {
-        var artwork = title.Artwork;
-
-        var primaryLogo = await LoadBytesAsync(artwork.PrimaryLogoImageId, ct);
-        var secondaryLogo = await LoadBytesAsync(artwork.SecondaryLogoImageId, ct);
-        var badgeLogo = await LoadBytesAsync(artwork.BadgeImageId, ct);
-        var providerLogo = await LoadBytesAsync(artwork.ProviderLogoImageId, ct);
+        var primaryLogo = await LoadBytesAsync(ingredients.PrimaryLogoImageId, ct);
+        var secondaryLogo = await LoadBytesAsync(ingredients.SecondaryLogoImageId, ct);
+        var badgeLogo = await LoadBytesAsync(ingredients.BadgeImageId, ct);
+        var providerLogo = await LoadBytesAsync(ingredients.ProviderLogoImageId, ct);
 
         int width = isVertical ? 1000 : 1920;
         int height = isVertical ? 1400 : 1080;
 
-        var color1 = ParseColorOrDefault(artwork.PrimaryColorHex, Rgba32.ParseHex("#222222"));
-        var color2 = ParseColorOrDefault(artwork.SecondaryColorHex, Rgba32.ParseHex("#333333"));
+        var color1 = ParseColorOrDefault(ingredients.PrimaryColorHex, Rgba32.ParseHex("#222222"));
+        var color2 = ParseColorOrDefault(ingredients.SecondaryColorHex, Rgba32.ParseHex("#333333"));
 
         using var image = new Image<Rgba32>(width, height);
         image.Mutate(ctx => ctx.Fill(Color.Black));
@@ -111,7 +159,9 @@ public class ImageCreationService(IReadModel readModel) : IImageCreationService
             image.Mutate(ctx => ctx.DrawImage(streaming, new Point(xPos, yPos), 1f));
         }
 
-        await image.SaveAsync(outputPath, new JpegEncoder { Quality = 95 }, ct);
+        using var output = new MemoryStream();
+        await image.SaveAsync(output, new JpegEncoder { Quality = 95 }, ct);
+        return output.ToArray();
     }
 
     private static void DrawTeamLogo(Image<Rgba32> canvas, Image<Rgba32> logo, bool isVertical, int side)

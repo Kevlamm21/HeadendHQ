@@ -22,12 +22,18 @@ public class CreateTitleHandler(IWorkspace workspace)
             {
                 Name = request.Name,
                 Type = request.Type,
+                SourceId = request.SourceId,
                 LaunchSlug = request.LaunchSlug,
                 EventUrl = request.EventUrl,
                 StartUtc = request.StartUtc,
                 EndUtc = request.EndUtc ?? request.StartUtc?.AddHours(3),
-                Metadata = request.Metadata,
-                Artwork = request.Artwork,
+                Plot = request.Plot,
+                Tagline = request.Tagline,
+                Studio = request.Studio,
+                Genres = request.Genres,
+                Sets = request.Sets,
+                ContentRating = request.ContentRating,
+                UniqueId = request.UniqueId,
                 Cast = request.Cast,
             });
             return existing;

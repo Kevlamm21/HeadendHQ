@@ -26,7 +26,7 @@ public class UploadImageHandler(IWorkspace workspace, IUnitOfWork unitOfWork, II
 
             var (width, height) = normalizer.Measure(bytes);
             var image = Image.Create(
-                bytes, "image/png", width, height, ImageOrigin.Manual, command.Purpose);
+                bytes, ContentTypeFor(command.Purpose), width, height, ImageOrigin.Manual, command.Purpose);
             workspace.Add(image);
             await unitOfWork.SaveChanges(ct);
 
@@ -37,4 +37,14 @@ public class UploadImageHandler(IWorkspace workspace, IUnitOfWork unitOfWork, II
             ImageStoreLock.Gate.Release();
         }
     }
+
+    /// <summary>
+    /// Poster/background/thumbnail normalize to JPEG; everything else is a transparent PNG. The row
+    /// records this so <c>/media/images/{id}</c> serves the right type.
+    /// </summary>
+    private static string ContentTypeFor(ImagePurpose purpose) => purpose switch
+    {
+        ImagePurpose.Poster or ImagePurpose.Background or ImagePurpose.Thumbnail => "image/jpeg",
+        _ => "image/png",
+    };
 }

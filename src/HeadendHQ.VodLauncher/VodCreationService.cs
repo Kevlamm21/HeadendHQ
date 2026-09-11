@@ -1,6 +1,7 @@
 using HeadendHQ.Core;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
+using HeadendHQ.Core.Titles.CommandHandlers;
 using HeadendHQ.VodLauncher.Settings;
 using Mediator;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,6 @@ public class VodCreationService(
     IMediator mediator,
     IWorkspace workspace,
     IVideoCreator videoCreator,
-    IImageCreationService imageCreation,
     INfoWriter nfoWriter,
     ILogger<VodCreationService> logger) : ICreationService
 {
@@ -61,21 +61,8 @@ public class VodCreationService(
             title.MarkVideoCreated(true);
         }
 
-        if (!title.ArtworkCreated && title.Type == TitleType.SportingEvent)
-        {
-            try
-            {
-                await imageCreation.CreatePosterAsync(title, ct);
-                await imageCreation.CreateThumbAsync(title, ct);
-                await imageCreation.CreateBackdropAsync(title, ct);
-                await imageCreation.CreateClearLogoAsync(title, ct);
-                title.MarkArtworkCreated();
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Failed to create artwork for title {Id} ({Name}).", title.Id, title.Name);
-            }
-        }
+        if (!title.ArtworkCreated)
+            await mediator.Send(new ComposeTitleArtworkCommand(title.Id), ct);
 
         try
         {

@@ -9,6 +9,7 @@ using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Titles;
 using Mediator;
 using Microsoft.Extensions.Logging;
 
@@ -258,17 +259,19 @@ public class ImportScheduleHandler(
         }
 
         var future = await workspace.Load(new FutureEventsBySourceSpec(sourceKey, now), ct);
-        var removed = 0;
+        var stale = future.Where(e => !seenExternalIds.Contains(e.ExternalId)).ToArray();
 
-        foreach (var sportingEvent in future.Where(e => !seenExternalIds.Contains(e.ExternalId)))
+        if (stale.Length > 0)
         {
-            workspace.Remove(sportingEvent);
-            removed++;
+            var titleIds = stale.Where(e => e.TitleId is not null).Select(e => e.TitleId!.Value).ToHashSet();
+            var titles = titleIds.Count == 0
+                ? []
+                : (await workspace.LoadAll<Title>(ct)).Where(t => titleIds.Contains(t.Id)).ToArray();
+
+            await TitleEventCleanup.RemoveAsync(workspace, stale, titles, ct);
+            await unitOfWork.SaveChanges(ct);
         }
 
-        if (removed > 0)
-            await unitOfWork.SaveChanges(ct);
-
-        return removed;
+        return stale.Length;
     }
 }

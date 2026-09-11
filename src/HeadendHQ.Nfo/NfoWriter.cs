@@ -21,18 +21,10 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
 
         var nfoPath = Path.Combine(title.VodLauncherPath, $"{title.Name}.nfo");
 
-        // The cast is already on the title, in billing order, with names and roles resolved. Whatever
-        // produced the title did that mapping once; nothing here needs to know what an athlete is.
-        var cast = title.Cast.OrderBy(c => c.Order).ToList();
-
         var globalSettings = await readModel.SingleOrDefault(new GlobalSettingsSpec(), ct);
+        var publicBaseUrl = globalSettings?.PublicBaseUrl;
 
-        if (cast.Count > 0 && string.IsNullOrEmpty(globalSettings?.PublicBaseUrl))
-            logger.LogWarning(
-                "PublicBaseUrl is not set; omitting {Count} headshot thumb(s) from the NFO for title {Id} ({Name}).",
-                cast.Count, title.Id, title.Name);
-
-        var doc = BuildDocument(title, cast, globalSettings?.PublicBaseUrl);
+        var doc = BuildDocument(title, publicBaseUrl);
 
         await using var stream = new FileStream(nfoPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true);
         var settings = new XmlWriterSettings { Indent = true, Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), Async = true };
@@ -60,10 +52,8 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
     /// rest, and its image handling keys off the <c>aspect</c> attribute, so the shape here is not
     /// interchangeable with Kodi's or Plex's.
     /// </summary>
-    private static XDocument BuildDocument(
-        Title title, List<TitleCastMember> cast, string? publicBaseUrl)
+    private XDocument BuildDocument(Title title, string? publicBaseUrl)
     {
-        var meta = title.Metadata;
         var name = title.Name;
 
         var movie = new XElement("movie",
@@ -74,41 +64,66 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         // try to match them against real movies and overwrite everything below.
         movie.Add(new XElement("lockdata", "true"));
 
-        if (meta?.Plot is not null) movie.Add(new XElement("plot", meta.Plot));
-
-        // Jellyfin has no venue tag, so the venue rides along on the tagline rather than being
-        // written to an element that would simply be discarded.
-        if (Tagline(meta) is { } tagline) movie.Add(new XElement("tagline", tagline));
-
-        if (meta?.ContentRating is not null) movie.Add(new XElement("mpaa", meta.ContentRating));
+        if (title.Plot is not null) movie.Add(new XElement("plot", title.Plot));
+        if (title.Tagline is not null) movie.Add(new XElement("tagline", title.Tagline));
+        if (title.ContentRating is not null) movie.Add(new XElement("mpaa", title.ContentRating));
         if (title.StartUtc is not null) movie.Add(new XElement("premiered", title.StartUtc.Value.ToString("yyyy-MM-dd")));
-        if (meta?.Studio is not null) movie.Add(new XElement("studio", meta.Studio));
+        if (title.Studio is not null) movie.Add(new XElement("studio", title.Studio));
 
-        foreach (var genre in meta?.Genres ?? [])
+        foreach (var genre in title.Genres)
             movie.Add(new XElement("genre", genre));
 
         // Every set is written as a tag; smart-collection logic on the client turns the tags it
         // cares about into collections. Jellyfin's <set> is deliberately not written here.
-        foreach (var set in meta?.Sets ?? [])
+        foreach (var set in title.Sets)
             movie.Add(new XElement("tag", set));
 
         if (title.IsLive)
             movie.Add(new XElement("tag", "Live"));
 
-        if (meta?.UniqueId is not null)
+        if (title.UniqueId is not null)
             movie.Add(new XElement("uniqueid",
-                new XAttribute("type", "espn"), new XAttribute("default", "true"), meta.UniqueId));
+                new XAttribute("type", "espn"), new XAttribute("default", "true"), title.UniqueId));
 
-        // aspect drives which image slot Jellyfin fills: default/poster -> Primary,
-        // landscape -> Thumb, clearlogo -> Logo, and a <thumb> nested in <fanart> -> Backdrop.
-        // Naming both landscape renders after a backdrop is what previously left Thumb empty.
-        movie.Add(new XElement("thumb", new XAttribute("aspect", "poster"), TitleArtworkFiles.Poster(name)));
-        movie.Add(new XElement("thumb", new XAttribute("aspect", "landscape"), TitleArtworkFiles.Thumb(name)));
+        AddArtwork(movie, title, publicBaseUrl, name);
+        AddCast(movie, title.Cast, publicBaseUrl);
 
-        if (title.Artwork.WordmarkImageId is not null)
-            movie.Add(new XElement("thumb", new XAttribute("aspect", "clearlogo"), TitleArtworkFiles.ClearLogo(name)));
+        return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), movie);
+    }
 
-        movie.Add(new XElement("fanart", new XElement("thumb", TitleArtworkFiles.Backdrop(name))));
+    /// <summary>
+    /// aspect drives which image slot Jellyfin fills: poster -> Primary, landscape -> Thumb,
+    /// clearlogo -> Logo, and a &lt;thumb&gt; nested in &lt;fanart&gt; -> Backdrop. The images live in
+    /// the media store, so these are /media/images/{id} URLs like the actor thumbs.
+    /// </summary>
+    private void AddArtwork(XElement movie, Title title, string? publicBaseUrl, string name)
+    {
+        if (string.IsNullOrEmpty(publicBaseUrl))
+        {
+            if (title.HasArtwork)
+                logger.LogWarning(
+                    "PublicBaseUrl is not set; omitting artwork from the NFO for title {Id} ({Name}).",
+                    title.Id, name);
+            return;
+        }
+
+        if (title.PosterImageId is { } posterId)
+            movie.Add(new XElement("thumb", new XAttribute("aspect", "poster"), MediaUrl(publicBaseUrl, posterId)));
+
+        if (title.ThumbnailImageId is { } thumbId)
+            movie.Add(new XElement("thumb", new XAttribute("aspect", "landscape"), MediaUrl(publicBaseUrl, thumbId)));
+
+        if (title.ClearLogoImageId is { } logoId)
+            movie.Add(new XElement("thumb", new XAttribute("aspect", "clearlogo"), MediaUrl(publicBaseUrl, logoId)));
+
+        if (title.BackgroundImageId is { } backgroundId)
+            movie.Add(new XElement("fanart", new XElement("thumb", MediaUrl(publicBaseUrl, backgroundId))));
+    }
+
+    private void AddCast(XElement movie, IReadOnlyList<TitleCastEntry> cast, string? publicBaseUrl)
+    {
+        if (cast.Count > 0 && string.IsNullOrEmpty(publicBaseUrl))
+            logger.LogWarning("PublicBaseUrl is not set; omitting {Count} headshot thumb(s) from the NFO.", cast.Count);
 
         for (var order = 0; order < cast.Count; order++)
         {
@@ -120,34 +135,13 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
 
             actor.Add(new XElement("order", order));
 
-            if (ActorThumb(member, publicBaseUrl) is { } thumb)
-                actor.Add(new XElement("thumb", thumb));
+            if (member.HeadshotImageId is { } imageId && !string.IsNullOrEmpty(publicBaseUrl))
+                actor.Add(new XElement("thumb", MediaUrl(publicBaseUrl, imageId)));
 
             movie.Add(actor);
         }
-
-        return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), movie);
     }
 
-    private static string? ActorThumb(TitleCastMember member, string? publicBaseUrl)
-    {
-        if (member.HeadshotImageId is not { } imageId || string.IsNullOrEmpty(publicBaseUrl))
-            return null;
-
-        return $"{publicBaseUrl}/media/images/{imageId}";
-    }
-
-    private static string? Tagline(TitleMetadata? meta)
-    {
-        if (meta is null)
-            return null;
-
-        return (meta.Tagline, meta.VenueName) switch
-        {
-            (null or "", null or "") => null,
-            (null or "", var venue) => venue,
-            (var line, null or "") => line,
-            var (line, venue) => $"{line} \u2014 {venue}",
-        };
-    }
+    private static string MediaUrl(string publicBaseUrl, int imageId) =>
+        $"{publicBaseUrl}/media/images/{imageId}";
 }

@@ -117,8 +117,7 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
         try
         {
             var globalSettings = await mediator.Send(new GetGlobalSettingsQuery(), ct);
-            await mediator.Send(new CleanupExpiredTitlesCommand(globalSettings.TitleRetentionDays), ct);
-            await mediator.Send(new CleanupExpiredEventsCommand(globalSettings.TitleRetentionDays), ct);
+            await mediator.Send(new CleanupExpiredCommand(globalSettings.TitleRetentionDays), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

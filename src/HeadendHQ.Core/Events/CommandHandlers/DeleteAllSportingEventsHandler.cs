@@ -1,11 +1,12 @@
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Titles;
 using Mediator;
 
 namespace HeadendHQ.Core.Events.CommandHandlers;
 
 /// <summary>
-/// Debugging aid: removes every sporting event so schedule and title production can be replayed
-/// from scratch without dropping the database.
+/// Debugging aid: removes every sporting event, and any title produced from one, so schedule and
+/// title production can be replayed from scratch without dropping the database.
 /// </summary>
 public record DeleteAllSportingEventsCommand : ICommand<int>;
 
@@ -15,10 +16,16 @@ public class DeleteAllSportingEventsHandler(IWorkspace workspace)
     public async ValueTask<int> Handle(DeleteAllSportingEventsCommand command, CancellationToken ct)
     {
         var sportingEvents = await workspace.LoadAll<SportingEvent>(ct);
+        var titleIds = sportingEvents
+            .Where(e => e.TitleId is not null)
+            .Select(e => e.TitleId!.Value)
+            .ToHashSet();
 
-        foreach (var sportingEvent in sportingEvents)
-            workspace.Remove(sportingEvent);
+        var titles = titleIds.Count == 0
+            ? []
+            : (await workspace.LoadAll<Title>(ct)).Where(t => titleIds.Contains(t.Id)).ToArray();
 
+        await TitleEventCleanup.RemoveAsync(workspace, sportingEvents, titles, ct);
         return sportingEvents.Count;
     }
 }

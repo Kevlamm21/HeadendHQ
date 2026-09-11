@@ -46,17 +46,10 @@ public class DeleteAllLeagueTeamImagesHandler(IWorkspace workspace)
             foreach (var logo in broadcaster.Logos)
                 referenced.Add(logo.ImageId);
 
+        // Titles hold no catalog logo ids any more, but their cast headshots must still be protected.
         foreach (var title in await workspace.LoadAll<Title>(ct))
-        {
-            AddImageId(title.Artwork.PrimaryLogoImageId, referenced);
-            AddImageId(title.Artwork.SecondaryLogoImageId, referenced);
-            AddImageId(title.Artwork.BadgeImageId, referenced);
-            AddImageId(title.Artwork.ProviderLogoImageId, referenced);
-            AddImageId(title.Artwork.WordmarkImageId, referenced);
-
             foreach (var castMember in title.Cast)
                 AddImageId(castMember.HeadshotImageId, referenced);
-        }
 
         var deleted = 0;
         foreach (var image in await workspace.LoadAll<Image>(ct))

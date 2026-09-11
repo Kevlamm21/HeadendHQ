@@ -1,4 +1,4 @@
-﻿using HeadendHQ.Core.Titles;
+using HeadendHQ.Core.Titles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -10,21 +10,14 @@ internal class TitleConfiguration : IEntityTypeConfiguration<Title>
     {
         builder.ToTable("Titles");
         builder.HasKey(e => e.Id);
-        builder.OwnsOne(e => e.Metadata, b => b.ToJson());
 
-        // Artwork is flat columns rather than JSON: these are image ids the composer reads by key.
-        builder.OwnsOne(e => e.Artwork);
-        builder.Navigation(e => e.Artwork).IsRequired();
-
-        builder.OwnsMany(e => e.Cast, cast =>
-        {
-            cast.ToTable("TitleCast");
-            cast.WithOwner().HasForeignKey(c => c.TitleId);
-            cast.HasKey(c => c.Id);
-            cast.HasIndex(c => new { c.TitleId, c.Order });
-        });
+        // Descriptive fields, artwork ids and colours are plain columns. The two string lists and
+        // the cast go to JSON columns — nothing queries them, the NFO writer just reads them back.
+        builder.PrimitiveCollection(e => e.Genres);
+        builder.PrimitiveCollection(e => e.Sets);
+        builder.OwnsMany(e => e.Cast, c => c.ToJson());
 
         builder.HasIndex(e => e.StartUtc);
+        builder.HasIndex(e => e.SourceId);
     }
-
 }
