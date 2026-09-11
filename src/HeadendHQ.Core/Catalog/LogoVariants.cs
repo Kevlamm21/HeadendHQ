@@ -20,6 +20,7 @@ public static class LogoRels
     public const string OnBlackColor = "primary_logo_on_black_color";
     public const string White = "primary_logo_white";
     public const string Black = "primary_logo_black";
+    public const string SecondaryOnPrimaryColor = "secondary_logo_on_primary_color";
 
     public static string Normalize(IEnumerable<string> rel)
     {

@@ -1,6 +1,5 @@
 using HeadendHQ.Core;
 using HeadendHQ.Core.Catalog.Broadcasters;
-using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events;
@@ -8,7 +7,6 @@ using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
 using Mediator;
-using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using ImagePurpose = HeadendHQ.Core.Media.ImagePurpose;
 using SixLabors.ImageSharp.Drawing;
@@ -20,7 +18,7 @@ using SixLabors.ImageSharp.Processing;
 namespace HeadendHQ.SixLabors;
 
 public class ImageCreationService(
-    IWorkspace workspace, IReadModel readModel, IMediator mediator, ILogger<ImageCreationService> logger)
+    IWorkspace workspace, IReadModel readModel, IMediator mediator)
     : IImageCreationService
 {
     public Task<int> CreatePosterAsync(Guid sourceId, CancellationToken ct = default) =>
@@ -57,12 +55,12 @@ public class ImageCreationService(
         var logoSource = await ResolveCarrierLogoSourceAsync(broadcaster, ct);
 
         return new Ingredients(
-            home?.PreferredLogo()?.ImageId,
-            away?.PreferredLogo()?.ImageId,
+            home?.SelectedLogo()?.ImageId,
+            away?.SelectedLogo()?.ImageId,
             home?.PrimaryColorHex,
             away?.PrimaryColorHex,
-            league.LogoFor(ev.Variant)?.ImageId,
-            logoSource is null ? null : await ProviderLogoAsync(logoSource, ct));
+            league.SelectedLogo(ev.Variant)?.ImageId,
+            logoSource?.SelectedLogo()?.ImageId);
     }
 
     private async Task<Broadcaster?> ResolveCarrierLogoSourceAsync(Broadcaster? broadcaster, CancellationToken ct)
@@ -77,23 +75,6 @@ public class ImageCreationService(
             return broadcaster;
 
         return await workspace.LoadById<Broadcaster, int>(targetId, ct);
-    }
-
-    private async Task<int?> ProviderLogoAsync(Broadcaster broadcaster, CancellationToken ct)
-    {
-        if (broadcaster.PreferredLogo() is { } held)
-            return held.ImageId;
-
-        try
-        {
-            await mediator.Send(new RefreshBroadcasterLogosCommand(broadcaster.Id), ct);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Failed to resolve artwork for broadcaster {Slug}.", broadcaster.Slug);
-        }
-
-        return broadcaster.PreferredLogo()?.ImageId;
     }
 
     private async Task<byte[]?> LoadBytesAsync(int? imageId, CancellationToken ct)

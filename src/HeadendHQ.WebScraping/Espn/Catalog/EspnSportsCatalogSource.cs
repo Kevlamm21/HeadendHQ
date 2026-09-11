@@ -43,18 +43,28 @@ internal sealed class EspnSportsCatalogSource(
             var detail = await TryGetAsync<EspnLeagueDetail>(
                 EspnEndpoints.League(sportSlug, slug), ct);
 
-            leagues.Add(new LeagueDescriptor(
-                ExternalId: detail?.Id ?? slug,
-                Slug: slug,
-                Name: Coalesce(detail?.DisplayName, detail?.Name) ?? Humanize(slug),
-                Abbreviation: detail?.Abbreviation,
-                ShortName: detail?.ShortName,
-                SupportsTeams: !IndividualSports.Contains(sportSlug),
-                Logos: ToCandidates(detail?.Logos)));
+            leagues.Add(ToLeague(sportSlug, slug, detail));
         }
 
         return leagues;
     }
+
+    public async Task<LeagueDescriptor?> GetLeagueAsync(string sportSlug, string leagueSlug, CancellationToken ct)
+    {
+        var detail = await TryGetAsync<EspnLeagueDetail>(EspnEndpoints.League(sportSlug, leagueSlug), ct);
+
+        return detail is null ? null : ToLeague(sportSlug, leagueSlug, detail);
+    }
+
+    private static LeagueDescriptor ToLeague(string sportSlug, string slug, EspnLeagueDetail? detail) =>
+        new(
+            ExternalId: detail?.Id ?? slug,
+            Slug: slug,
+            Name: Coalesce(detail?.DisplayName, detail?.Name) ?? Humanize(slug),
+            Abbreviation: detail?.Abbreviation,
+            ShortName: detail?.ShortName,
+            SupportsTeams: !IndividualSports.Contains(sportSlug),
+            Logos: ToCandidates(detail?.Logos));
 
     public async Task<IReadOnlyList<TeamDescriptor>> GetTeamsAsync(LeagueKey league, CancellationToken ct)
     {
@@ -76,7 +86,11 @@ internal sealed class EspnSportsCatalogSource(
                 PrimaryColorHex: t.Color,
                 AlternateColorHex: t.AlternateColor,
                 IsActive: t.IsActive ?? true,
-                Logos: ToCandidates(t.Logos, GuidAddressed, keep: false)))];
+                // The bulk listing once handed each NFL team the previous team's guid-addressed logos, so these
+                // were filtered out and re-sourced per team. That no longer reproduces; restore the filter
+                // (and the VerifyLogosAsync call in DownloadLeagueTeamLogosHandler) if it comes back.
+                // Logos: ToCandidates(t.Logos, GuidAddressed, keep: false)))];
+                Logos: ToCandidates(t.Logos)))];
     }
 
     public async Task<IReadOnlyList<ImageCandidate>> GetTeamLogosAsync(TeamKey team, CancellationToken ct)

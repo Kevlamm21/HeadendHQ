@@ -47,6 +47,7 @@ internal class LeagueConfiguration : IEntityTypeConfiguration<League>
 
             mark.Ignore(w => w.Label);
             mark.Ignore(w => w.Origin);
+            mark.Ignore(w => w.IsSelected);
         });
     }
 }

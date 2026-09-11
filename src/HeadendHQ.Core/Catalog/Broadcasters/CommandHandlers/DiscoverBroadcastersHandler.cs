@@ -70,8 +70,8 @@ public class DiscoverBroadcastersHandler(
 
                 if (existing is not null && !canonical)
                 {
-                    logosAdded += await RefreshBroadcasterLogosHandler.StoreLogoAsync(
-                        existing, detail.Logos, mediator, refreshExisting: false, ct);
+                    logosAdded += (await RefreshBroadcasterLogosHandler.FillLogosAsync(
+                        existing, detail.Logos, mediator, ct)).Stored.Count;
                 }
                 else
                 {
@@ -80,9 +80,8 @@ public class DiscoverBroadcastersHandler(
                     broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, BroadcasterKind.Unknown);
                     broadcaster.TrackSource(source.SourceKey, detail.ExternalId);
 
-                    if (broadcaster.IsSubscribed)
-                        logosAdded += await RefreshBroadcasterLogosHandler.StoreLogoAsync(
-                            broadcaster, detail.Logos, mediator, refreshExisting: false, ct);
+                    logosAdded += (await RefreshBroadcasterLogosHandler.FillLogosAsync(
+                        broadcaster, detail.Logos, mediator, ct)).Stored.Count;
 
                     broadcaster.MarkDetailFetched();
 

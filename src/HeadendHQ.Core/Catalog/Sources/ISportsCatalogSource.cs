@@ -8,6 +8,8 @@ public interface ISportsCatalogSource
 
     Task<IReadOnlyList<LeagueDescriptor>> GetLeaguesAsync(string sportSlug, CancellationToken ct);
 
+    Task<LeagueDescriptor?> GetLeagueAsync(string sportSlug, string leagueSlug, CancellationToken ct);
+
     Task<IReadOnlyList<TeamDescriptor>> GetTeamsAsync(LeagueKey league, CancellationToken ct);
 
     Task<IReadOnlyList<ImageCandidate>> GetTeamLogosAsync(TeamKey team, CancellationToken ct);

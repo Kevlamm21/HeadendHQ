@@ -1,5 +1,7 @@
 using Hangfire;
+using HeadendHQ.Core.Catalog;
 using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
+using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 using HeadendHQ.Core.Catalog.Sports.CommandHandlers;
 using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
@@ -39,25 +41,25 @@ public static class CatalogEndpoints
             .WithSummary("List broadcasters")
             .WithDescription("Optionally filtered to subscribed only, or by affiliate=national|local|other.");
 
-        catalog.MapPatch("/leagues/{id:int}", async (int id, FollowRequest body, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new FollowLeagueCommand(id, body.IsFollowed), ct)))
-            .WithName("FollowLeague")
-            .WithSummary("Follow or unfollow a league")
+        catalog.MapPatch("/leagues/{id:int}", async (int id, UpdateLeagueRequest body, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new UpdateLeagueCommand(id, body.IsFollowed, body.SelectedLogoId), ct)))
+            .WithName("UpdateLeague")
+            .WithSummary("Follow or unfollow a league, or pick its logo")
             .WithDescription(
-                "Following a league pulls its teams and downloads its own mark. The league catalog records no artwork — "
-                + "356 leagues would mean 356 downloads for the handful anyone follows — so this is the first moment it is fetched.");
+                "Following a league pulls its team list and enqueues a background job that downloads three logos per team "
+                + "(primary on primary, primary on secondary, secondary on primary). selectedLogoId picks which of the league's logos artwork uses.");
 
         catalog.MapPatch("/teams/{id:int}", async (int id, UpdateTeamRequest body, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new UpdateTeamCommand(
-                id, body.IsFollowed, body.PreferredLogoRel, body.PrimaryColorHex, body.AlternateColorHex), ct)))
+                id, body.IsFollowed, body.SelectedLogoId, body.PrimaryColorHex, body.AlternateColorHex), ct)))
             .WithName("UpdateTeam")
             .WithSummary("Update a team")
-            .WithDescription("Follow the team, pick which logo variant artwork uses, or override its colours.");
-        
+            .WithDescription("Follow the team, pick which of its logos artwork uses, or override its colours.");
+
         catalog.MapPatch("/broadcasters/{id:int}", async (int id, UpdateBroadcasterRequest body, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new UpdateBroadcasterCommand(
                 id, body.IsSubscribed,
-                body.SetMapping, body.MapsToBroadcasterId, body.IptvGuideNumber), ct)))
+                body.SetMapping, body.MapsToBroadcasterId, body.IptvGuideNumber, body.SelectedLogoId), ct)))
             .WithName("UpdateBroadcaster")
             .WithSummary("Subscribe to a broadcaster, or point it at another")
             .WithDescription(
@@ -80,14 +82,12 @@ public static class CatalogEndpoints
             .WithSummary("Pull one sport's leagues")
             .WithDescription("For sports outside the discovery allowlist. Idempotent, so re-running it only refreshes.");
         
-        catalog.MapPost("/leagues/{id:int}/refresh", async (int id, bool? withLogos, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(new { teams = await mediator.Send(new RefreshLeagueTeamsCommand(id, withLogos ?? false), ct) }))
+        catalog.MapPost("/leagues/{id:int}/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(new { teams = await mediator.Send(new RefreshLeagueTeamsCommand(id), ct) }))
             .WithName("RefreshLeagueTeams")
             .WithSummary("Re-pull a league's teams")
-            .WithDescription(
-                "One upstream request returns every team with colours and logo variants. Teams with no mark yet get one either way; "
-                + "withLogos=true additionally re-checks the marks already held, which an ordinary refresh skips.");
-        
+            .WithDescription("One upstream request returns every team with its colours. Logos are untouched; use /leagues/{id}/teams/logos/refresh for those.");
+
         catalog.MapPost("/broadcasters/resolve", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(new { resolved = await mediator.Send(new RefreshBroadcasterDetailsCommand(), ct) }))
             .WithName("ResolveBroadcasters")
@@ -117,27 +117,61 @@ public static class CatalogEndpoints
             .WithDescription("Wordmarks are the Jellyfin clearlogo. ESPN has no equivalent asset, so these are upload-only. Variants let an NBA Cup game use a different mark from a regular-season game.")
             .DisableAntiforgery();
 
-        catalog.MapPut("/leagues/{id:int}/logos/{variant}", async (
-            int id, string variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new UploadLeagueLogoOverrideCommand(id, variant, await ReadBytesAsync(logo, ct)), ct)))
-            .WithName("UploadLeagueLogoOverride")
-            .WithSummary("Replace a league logo")
-            .WithDescription("A hand-uploaded image is never overwritten by a later refresh, and a refresh will not spend a request on one.")
+        catalog.MapPost("/leagues/{id:int}/logos", async (
+            int id, string? variant, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new UploadLeagueLogoCommand(
+                id, string.IsNullOrWhiteSpace(variant) ? LogoVariants.Default : variant, await ReadBytesAsync(logo, ct)), ct)))
+            .WithName("UploadLeagueLogo")
+            .WithSummary("Upload a league logo")
+            .WithDescription("Adds the image to the league's logos without selecting it; select it with PATCH /catalog/leagues/{id}. ?variant= (Cup, Playoffs, …) uploads an edition badge instead. Refresh never replaces an upload.")
             .DisableAntiforgery();
 
-        catalog.MapPut("/teams/{id:int}/logos/{rel}", async (
-            int id, string rel, IFormFile logo, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new UploadTeamLogoOverrideCommand(id, rel, await ReadBytesAsync(logo, ct)), ct)))
-            .WithName("UploadTeamLogoOverride")
-            .WithSummary("Replace a team logo variant")
+        catalog.MapPost("/teams/{id:int}/logos", async (
+            int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new UploadTeamLogoCommand(id, await ReadBytesAsync(logo, ct)), ct)))
+            .WithName("UploadTeamLogo")
+            .WithSummary("Upload a team logo")
+            .WithDescription("Adds the image to the team's logos without selecting it; select it with PATCH /catalog/teams/{id}.")
             .DisableAntiforgery();
 
-        catalog.MapPut("/broadcasters/{id:int}/logo", async (
+        catalog.MapPost("/broadcasters/{id:int}/logos", async (
             int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new UploadBroadcasterLogoCommand(id, await ReadBytesAsync(logo, ct)), ct)))
             .WithName("UploadBroadcasterLogo")
-            .WithSummary("Replace a broadcaster logo")
+            .WithSummary("Upload a broadcaster logo")
+            .WithDescription("Adds the image to the broadcaster's logos without selecting it; select it with PATCH /catalog/broadcasters/{id}.")
             .DisableAntiforgery();
+
+        MapDeleteLogo(catalog, "teams", CatalogLogoOwner.Team);
+        MapDeleteLogo(catalog, "leagues", CatalogLogoOwner.League);
+        MapDeleteLogo(catalog, "broadcasters", CatalogLogoOwner.Broadcaster);
+
+        catalog.MapPost("/teams/{id:int}/logos/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new RefreshTeamLogosCommand(id, RefreshExisting: true), ct)))
+            .WithName("RefreshTeamLogos")
+            .WithSummary("Re-download a team's logos")
+            .WithDescription("Replaces the stored ESPN logos with the current ones. Uploaded logos are kept.");
+
+        catalog.MapPost("/leagues/{id:int}/logos/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new RefreshLeagueLogosCommand(id, RefreshExisting: true), ct)))
+            .WithName("RefreshLeagueLogos")
+            .WithSummary("Re-download a league's own logo")
+            .WithDescription("Replaces the stored ESPN logo with the current one. Uploaded logos are kept.");
+
+        catalog.MapPost("/broadcasters/{id:int}/logos/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new RefreshBroadcasterLogosCommand(id, RefreshExisting: true), ct)))
+            .WithName("RefreshBroadcasterLogos")
+            .WithSummary("Re-download a broadcaster's logos")
+            .WithDescription("Replaces the stored ESPN logos with the current ones. Uploaded logos are kept.");
+
+        catalog.MapPost("/leagues/{id:int}/teams/logos/refresh", (int id) =>
+        {
+            var jobId = BackgroundJob.Enqueue<TeamLogoJob>(job => job.RunAsync(id, true, CancellationToken.None));
+            return Results.Accepted($"/hangfire/jobs/details/{jobId}", new { jobId });
+        })
+            .WithName("RefreshLeagueTeamLogos")
+            .WithSummary("Re-download every team logo in a league")
+            .WithDescription("Enqueues a background job; one upstream request for the team list, then the image downloads. Uploaded logos are kept.");
 
         catalog.MapDelete("/leagues/{id:int}/teams", async (int id, IMediator mediator, CancellationToken ct) =>
         {
@@ -155,7 +189,7 @@ public static class CatalogEndpoints
         })
             .WithName("DeleteAllLeagueTeamImages")
             .WithSummary("Delete all stored team images in a league")
-            .WithDescription("Debugging aid. Clears the league's team logo materializations and removes only image blobs that are no longer referenced elsewhere.");
+            .WithDescription("Debugging aid. Deletes the league's team logos and removes only image blobs that are no longer referenced elsewhere.");
 
         catalog.MapDelete("/headshots", async (IMediator mediator, CancellationToken ct) =>
         {
@@ -175,16 +209,25 @@ public static class CatalogEndpoints
         return stream.ToArray();
     }
 
-    public record FollowRequest(bool IsFollowed);
+    private static void MapDeleteLogo(RouteGroupBuilder catalog, string segment, CatalogLogoOwner owner) =>
+        catalog.MapDelete($"/{segment}/{{id:int}}/logos/{{logoId:int}}", async (
+            int id, int logoId, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(new { imagesDeleted = await mediator.Send(new DeleteCatalogLogoCommand(owner, id, logoId), ct) }))
+            .WithName($"Delete{owner}Logo")
+            .WithSummary($"Delete an uploaded {owner.ToString().ToLowerInvariant()} logo")
+            .WithDescription("Only uploaded logos can be deleted; ESPN logos are replaced by refresh. If it was selected, the default is selected instead.");
+
+    public record UpdateLeagueRequest(bool? IsFollowed, int? SelectedLogoId = null);
 
     public record UpdateTeamRequest(
-        bool? IsFollowed, string? PreferredLogoRel, string? PrimaryColorHex, string? AlternateColorHex);
+        bool? IsFollowed, int? SelectedLogoId, string? PrimaryColorHex, string? AlternateColorHex);
 
     public record UpdateBroadcasterRequest(
         bool? IsSubscribed,
         bool SetMapping = false,
         int? MapsToBroadcasterId = null,
-        string? IptvGuideNumber = null);
+        string? IptvGuideNumber = null,
+        int? SelectedLogoId = null);
 
     private static BroadcasterAffiliateFilter? ParseAffiliateFilter(string? value) => value?.ToLowerInvariant() switch
     {

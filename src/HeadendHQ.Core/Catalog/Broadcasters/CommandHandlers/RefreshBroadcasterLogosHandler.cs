@@ -1,31 +1,31 @@
+using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Media;
-using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Shared;
 using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-public record RefreshBroadcasterLogosCommand(int BroadcasterId, bool RefreshExisting = false) : ICommand<int>;
+public record RefreshBroadcasterLogosCommand(int BroadcasterId, bool RefreshExisting = false) : ICommand<Broadcaster>;
 
 public class RefreshBroadcasterLogosHandler(
     IWorkspace workspace,
+    IUnitOfWork unitOfWork,
     IMediator mediator,
     IBroadcasterCatalogSource source,
     ILogger<RefreshBroadcasterLogosHandler> logger)
-    : ICommandHandler<RefreshBroadcasterLogosCommand, int>
+    : ICommandHandler<RefreshBroadcasterLogosCommand, Broadcaster>
 {
-    public async ValueTask<int> Handle(RefreshBroadcasterLogosCommand command, CancellationToken ct)
+    public async ValueTask<Broadcaster> Handle(RefreshBroadcasterLogosCommand command, CancellationToken ct)
     {
         var broadcaster = await workspace.LoadById<Broadcaster, int>(command.BroadcasterId, ct);
 
-        if (broadcaster.PreferredLogo() is { } current
-            && (!command.RefreshExisting || current.Origin is ImageOrigin.Manual))
-            return 0;
+        if (broadcaster.HasFetchedLogos && !command.RefreshExisting)
+            return broadcaster;
 
         if (broadcaster.ExternalIdFor(source.SourceKey) is not { } externalId)
-            return 0;
+            return broadcaster;
 
         BroadcasterDescriptor? detail;
         try
@@ -35,32 +35,30 @@ public class RefreshBroadcasterLogosHandler(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to read artwork for broadcaster {Slug}.", broadcaster.Slug);
-            return 0;
+            return broadcaster;
         }
 
-        return await StoreLogoAsync(broadcaster, detail?.Logos, mediator, command.RefreshExisting, ct);
+        var (_, dropped) = await StoreLogosAsync(broadcaster, detail?.Logos, mediator, command.RefreshExisting, ct);
+
+        await unitOfWork.SaveChanges(ct);
+        await mediator.Send(new DeleteOrphanedImagesCommand(dropped), ct);
+
+        return broadcaster;
     }
 
-    internal static async Task<int> StoreLogoAsync(
+    internal static async Task<(LogoDownload Download, IReadOnlyList<int> Dropped)> StoreLogosAsync(
         Broadcaster broadcaster, IReadOnlyList<ImageCandidate>? candidates, IMediator mediator,
-        bool refreshExisting, CancellationToken ct)
+        bool revalidate, CancellationToken ct)
     {
-        if (LogoSelection.ForBroadcaster(candidates) is not { } chosen)
-            return 0;
+        var download = await CatalogLogoDownloader.DownloadAsync(
+            mediator, LogoPolicy.Broadcaster, candidates, ImagePurpose.BroadcasterLogo, revalidate, ct);
 
-        var label = LogoSelection.LabelFor(chosen);
-
-        if (Logos.Find(broadcaster.Logos, LogoVariants.Default, label) is { } held
-            && (!refreshExisting || held.Origin is ImageOrigin.Manual))
-            return 0;
-
-        if (await mediator.Send(
-                new MaterializeImageByUrlCommand(
-                    chosen.Url, ImagePurpose.BroadcasterLogo, Revalidate: refreshExisting), ct)
-            is not { } imageId)
-            return 0;
-
-        broadcaster.UpsertLogo(label, imageId);
-        return 1;
+        return (download, broadcaster.StoreFetchedLogos(download));
     }
+
+    internal static async Task<LogoDownload> FillLogosAsync(
+        Broadcaster broadcaster, IReadOnlyList<ImageCandidate>? candidates, IMediator mediator, CancellationToken ct) =>
+        broadcaster.HasFetchedLogos
+            ? LogoDownload.Nothing
+            : (await StoreLogosAsync(broadcaster, candidates, mediator, revalidate: false, ct)).Download;
 }

@@ -3,7 +3,7 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog.Leagues;
 
-public class League : IEntity<int>, IExternalRef
+public class League : Entity<int>, IExternalRef
 {
     private League() { }
 
@@ -14,7 +14,7 @@ public class League : IEntity<int>, IExternalRef
         Name = name;
     }
 
-    public int Id { get; init; }
+    public override int Id { get; init; }
     public int SportId { get; private set; }
 
     public string Slug { get; private set; } = string.Empty;
@@ -36,7 +36,13 @@ public class League : IEntity<int>, IExternalRef
         ShortName = shortName;
         SupportsTeams = supportsTeams;
     }
-    public void Follow(bool followed) => IsFollowed = followed;
+    public void Follow(bool followed)
+    {
+        if (followed && !IsFollowed)
+            RecordEvent(new LeagueFollowed(Id));
+
+        IsFollowed = followed;
+    }
 
     public void MarkTeamsRefreshed() => TeamsRefreshedAtUtc = DateTimeOffset.UtcNow;
 
@@ -46,21 +52,36 @@ public class League : IEntity<int>, IExternalRef
         ExternalId = externalId;
     }
 
-    public LeagueLogo? LogoFor(string variant) =>
-        Logos.FirstOrDefault(l => l.Variant == variant && l.Label == LogoRels.Default)
-        ?? Logos.FirstOrDefault(l => l.Variant == variant)
-        ?? Logos.FirstOrDefault(l => l.Variant == LogoVariants.Default && l.Label == LogoRels.Default)
-        ?? Logos.FirstOrDefault(l => l.Variant == LogoVariants.Default);
+    public LeagueLogo? SelectedLogo(string variant = LogoVariants.Default) =>
+        Catalog.Logos.Selected(Logos, variant, LogoPolicy.League)
+        ?? Catalog.Logos.Selected(Logos, LogoVariants.Default, LogoPolicy.League);
+
+    public bool HasFetchedLogos => Catalog.Logos.HasFetched(Logos);
 
     public LeagueWordmark? WordmarkFor(string variant) =>
         Wordmarks.FirstOrDefault(w => w.Variant == variant)
         ?? Wordmarks.FirstOrDefault(w => w.Variant == LogoVariants.Default);
 
-    public LeagueLogo UpsertLogo(
-        string variant, string? label, int imageId, ImageOrigin origin = ImageOrigin.Fetched) =>
-        Catalog.Logos.Upsert(
-            Logos, variant, label, imageId, origin,
-            () => new LeagueLogo(variant, label, imageId, origin));
+    public IReadOnlyList<int> StoreFetchedLogos(LogoDownload download) =>
+        Catalog.Logos.StoreFetched(
+            Logos, LogoVariants.Default, download, LogoPolicy.League,
+            f => new LeagueLogo(LogoVariants.Default, f.Label, f.ImageId, ImageOrigin.Fetched));
+
+    public LeagueLogo AddUploadedLogo(string variant, int imageId)
+    {
+        var logo = Catalog.Logos.AddUpload(
+            Logos, variant, imageId,
+            () => new LeagueLogo(variant, null, imageId, ImageOrigin.Manual));
+
+        if (variant != LogoVariants.Default)
+            Catalog.Logos.EnsureSelected(Logos, variant, LogoPolicy.League);
+
+        return logo;
+    }
+
+    public LeagueLogo SelectLogo(int logoId) => Catalog.Logos.Select(Logos, logoId);
+
+    public int RemoveLogo(int logoId) => Catalog.Logos.Remove(Logos, logoId, LogoPolicy.League);
 
     public LeagueWordmark UpsertWordmark(string variant, int imageId)
     {
@@ -75,3 +96,5 @@ public class League : IEntity<int>, IExternalRef
         return wordmark;
     }
 }
+
+public record LeagueFollowed(int LeagueId) : IEvent;

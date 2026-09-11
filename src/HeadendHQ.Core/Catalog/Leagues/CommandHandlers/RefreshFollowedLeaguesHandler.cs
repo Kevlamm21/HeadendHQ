@@ -24,7 +24,6 @@ public class RefreshFollowedLeaguesHandler(
             try
             {
                 await mediator.Send(new RefreshLeagueTeamsCommand(league.Id), ct);
-                await mediator.Send(new RefreshLeagueLogosCommand(league.Id), ct);
                 refreshed++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

@@ -11,7 +11,6 @@ public record RefreshBroadcasterDetailsCommand : ICommand<int>;
 public class RefreshBroadcasterDetailsHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
-    IMediator mediator,
     IBroadcasterCatalogSource source,
     ILogger<RefreshBroadcasterDetailsHandler> logger)
     : ICommandHandler<RefreshBroadcasterDetailsCommand, int>
@@ -31,13 +30,7 @@ public class RefreshBroadcasterDetailsHandler(
                 var detail = await source.GetBroadcasterAsync(externalId, ct);
 
                 if (detail is not null)
-                {
                     broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, broadcaster.Kind);
-
-                    if (broadcaster.IsSubscribed)
-                        await RefreshBroadcasterLogosHandler.StoreLogoAsync(
-                            broadcaster, detail.Logos, mediator, refreshExisting: false, ct);
-                }
 
                 broadcaster.MarkDetailFetched();
                 resolved++;

@@ -95,13 +95,22 @@ public class Broadcaster : IEntity<int>, IExternalRef
         ExternalId = externalId;
     }
 
-    public BroadcasterLogo? PreferredLogo() =>
-        Logos.FirstOrDefault(l => l.Label == LogoRels.Dark)
-        ?? Logos.FirstOrDefault(l => l.Label == LogoRels.Default)
-        ?? Logos.FirstOrDefault();
+    public BroadcasterLogo? SelectedLogo() =>
+        Catalog.Logos.Selected(Logos, LogoVariants.Default, LogoPolicy.Broadcaster);
 
-    public BroadcasterLogo UpsertLogo(string? label, int imageId, ImageOrigin origin = ImageOrigin.Fetched) =>
-        Catalog.Logos.Upsert(
-            Logos, LogoVariants.Default, label, imageId, origin,
-            () => new BroadcasterLogo(LogoVariants.Default, label, imageId, origin));
+    public bool HasFetchedLogos => Catalog.Logos.HasFetched(Logos);
+
+    public IReadOnlyList<int> StoreFetchedLogos(LogoDownload download) =>
+        Catalog.Logos.StoreFetched(
+            Logos, LogoVariants.Default, download, LogoPolicy.Broadcaster,
+            f => new BroadcasterLogo(LogoVariants.Default, f.Label, f.ImageId, ImageOrigin.Fetched));
+
+    public BroadcasterLogo AddUploadedLogo(int imageId) =>
+        Catalog.Logos.AddUpload(
+            Logos, LogoVariants.Default, imageId,
+            () => new BroadcasterLogo(LogoVariants.Default, null, imageId, ImageOrigin.Manual));
+
+    public BroadcasterLogo SelectLogo(int logoId) => Catalog.Logos.Select(Logos, logoId);
+
+    public int RemoveLogo(int logoId) => Catalog.Logos.Remove(Logos, logoId, LogoPolicy.Broadcaster);
 }

@@ -1,6 +1,6 @@
+using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
-using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
 using Mediator;
@@ -8,52 +8,51 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 
-public record RefreshLeagueLogosCommand(int LeagueId, bool RefreshExisting = false) : ICommand<int>;
+public record RefreshLeagueLogosCommand(int LeagueId, bool RefreshExisting = false) : ICommand<League>;
 
 public class RefreshLeagueLogosHandler(
     IWorkspace workspace,
+    IUnitOfWork unitOfWork,
     IMediator mediator,
     ISportsCatalogSource source,
     ILogger<RefreshLeagueLogosHandler> logger)
-    : ICommandHandler<RefreshLeagueLogosCommand, int>
+    : ICommandHandler<RefreshLeagueLogosCommand, League>
 {
-    public async ValueTask<int> Handle(RefreshLeagueLogosCommand command, CancellationToken ct)
+    public async ValueTask<League> Handle(RefreshLeagueLogosCommand command, CancellationToken ct)
     {
         var league = await workspace.LoadById<League, int>(command.LeagueId, ct);
 
-        if (league.LogoFor(LogoVariants.Default) is { } held
-            && (!command.RefreshExisting || held.Origin is ImageOrigin.Manual))
-            return 0;
+        if (league.HasFetchedLogos && !command.RefreshExisting)
+            return league;
 
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
 
-        IReadOnlyList<LeagueDescriptor> descriptors;
+        LeagueDescriptor? descriptor;
         try
         {
-            descriptors = await source.GetLeaguesAsync(sport.Slug, ct);
+            descriptor = await source.GetLeagueAsync(sport.Slug, league.Slug, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to read league artwork for {League}.", league.Slug);
-            return 0;
+            return league;
         }
 
-        var descriptor = descriptors.FirstOrDefault(d =>
-            d.Slug.Equals(league.Slug, StringComparison.OrdinalIgnoreCase));
+        var download = await CatalogLogoDownloader.DownloadAsync(
+            mediator, LogoPolicy.League, descriptor?.Logos, ImagePurpose.LeagueLogo,
+            command.RefreshExisting, ct);
 
-        if (LogoSelection.ForLeague(descriptor?.Logos) is not { } chosen)
+        if (download.Stored.Count == 0)
         {
-            logger.LogInformation("Source has no artwork for league {League}.", league.Slug);
-            return 0;
+            logger.LogInformation("Source has no usable artwork for league {League}.", league.Slug);
+            return league;
         }
 
-        if (await mediator.Send(
-                new MaterializeImageByUrlCommand(
-                    chosen.Url, ImagePurpose.LeagueLogo, league.Id, command.RefreshExisting), ct)
-            is not { } imageId)
-            return 0;
+        var dropped = league.StoreFetchedLogos(download);
 
-        league.UpsertLogo(LogoVariants.Default, LogoSelection.LabelFor(chosen), imageId);
-        return 1;
+        await unitOfWork.SaveChanges(ct);
+        await mediator.Send(new DeleteOrphanedImagesCommand(dropped), ct);
+
+        return league;
     }
 }

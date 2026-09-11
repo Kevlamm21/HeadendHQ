@@ -22,10 +22,13 @@ public class TeamLogo : ILogo
     public string? Label { get; private set; } = LogoRels.Default;
     public ImageOrigin Origin { get; private set; }
     public int ImageId { get; private set; }
+    public bool IsSelected { get; private set; }
 
     public void PointAt(int imageId, ImageOrigin origin)
     {
         ImageId = imageId;
         Origin = origin;
     }
+
+    public void Select(bool selected) => IsSelected = selected;
 }

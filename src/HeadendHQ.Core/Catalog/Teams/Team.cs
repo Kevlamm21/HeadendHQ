@@ -30,8 +30,6 @@ public class Team : IEntity<int>, IExternalRef
     public bool IsActive { get; private set; } = true;
     public bool IsFollowed { get; private set; }
 
-    public string PreferredLogoRel { get; private set; } = LogoRels.OnSecondaryColor;
-
     public DateTimeOffset? LogosVerifiedAtUtc { get; private set; }
 
     public string? SourceKey { get; private set; }
@@ -56,8 +54,6 @@ public class Team : IEntity<int>, IExternalRef
 
     public void Follow(bool followed) => IsFollowed = followed;
 
-    public void PreferLogo(string rel) => PreferredLogoRel = rel;
-
     public void OverrideColors(string? primaryColorHex, string? alternateColorHex)
     {
         if (primaryColorHex is not null) PrimaryColorHex = NormalizeColor(primaryColorHex);
@@ -74,20 +70,25 @@ public class Team : IEntity<int>, IExternalRef
         ExternalId = externalId;
     }
 
-    public TeamLogo? PreferredLogo() =>
-        Logos.FirstOrDefault(l => l.Label == PreferredLogoRel)
-        ?? Logos.FirstOrDefault(l => l.Label == LogoRels.OnSecondaryColor)
-        ?? Logos.FirstOrDefault(l => l.Label == LogoRels.OnPrimaryColor)
-        ?? Logos.FirstOrDefault(l => l.Label == LogoRels.Default)
-        ?? Logos.FirstOrDefault(l => l.Label == LogoRels.Scoreboard)
-        ?? Logos.FirstOrDefault();
+    public TeamLogo? SelectedLogo() => Catalog.Logos.Selected(Logos, LogoVariants.Default, LogoPolicy.Team);
+
+    public bool HasFetchedLogos => Catalog.Logos.HasFetched(Logos);
 
     public void ClearLogos() => Logos.Clear();
 
-    public TeamLogo UpsertLogo(string? label, int imageId, ImageOrigin origin = ImageOrigin.Fetched) =>
-        Catalog.Logos.Upsert(
-            Logos, LogoVariants.Default, label, imageId, origin,
-            () => new TeamLogo(LogoVariants.Default, label, imageId, origin));
+    public IReadOnlyList<int> StoreFetchedLogos(LogoDownload download) =>
+        Catalog.Logos.StoreFetched(
+            Logos, LogoVariants.Default, download, LogoPolicy.Team,
+            f => new TeamLogo(LogoVariants.Default, f.Label, f.ImageId, ImageOrigin.Fetched));
+
+    public TeamLogo AddUploadedLogo(int imageId) =>
+        Catalog.Logos.AddUpload(
+            Logos, LogoVariants.Default, imageId,
+            () => new TeamLogo(LogoVariants.Default, null, imageId, ImageOrigin.Manual));
+
+    public TeamLogo SelectLogo(int logoId) => Catalog.Logos.Select(Logos, logoId);
+
+    public int RemoveLogo(int logoId) => Catalog.Logos.Remove(Logos, logoId, LogoPolicy.Team);
 
     private static string? NormalizeColor(string? hex)
     {

@@ -4,6 +4,7 @@ using HeadendHQ.Core.Catalog.Broadcasters;
 using HeadendHQ.Core.Catalog.Leagues.Specifications;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 using HeadendHQ.Core.Catalog.Teams.Specifications;
 using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events.Specifications;
@@ -229,7 +230,20 @@ public class ImportScheduleHandler(
         return firstKnown;
     }
 
+    private readonly HashSet<int> _logoAttempts = [];
+
     private async Task<Team> ResolveTeamAsync(
+        League league, CompetitorDescriptor competitor, string sourceKey, CancellationToken ct)
+    {
+        var team = await FindOrCreateTeamAsync(league, competitor, sourceKey, ct);
+
+        if (!team.HasFetchedLogos && _logoAttempts.Add(team.Id))
+            await mediator.Send(new RefreshTeamLogosCommand(team.Id), ct);
+
+        return team;
+    }
+
+    private async Task<Team> FindOrCreateTeamAsync(
         League league, CompetitorDescriptor competitor, string sourceKey, CancellationToken ct)
     {
         if (competitor.TeamExternalId is { Length: > 0 } externalId)

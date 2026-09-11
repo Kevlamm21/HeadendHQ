@@ -17,7 +17,8 @@ internal static class EspnExtensions
                 AutomaticDecompression = System.Net.DecompressionMethods.All,
             });
 
-        builder.Services.AddScoped<EspnRequestGate>();
+        builder.Services.AddScoped<EspnApiGate>();
+        builder.Services.AddScoped<EspnCdnGate>();
 
         builder.Services.AddScoped<ISportsCatalogSource, EspnSportsCatalogSource>();
         builder.Services.AddScoped<IBroadcasterCatalogSource, EspnBroadcasterCatalogSource>();

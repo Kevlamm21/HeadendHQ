@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Leagues.Specifications;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports.Specifications;
@@ -16,6 +15,7 @@ public record SyncCatalogResult(int SportsExamined, int LeaguesUpserted);
 public class SyncSportsAndLeaguesHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
+    IMediator mediator,
     ISportsCatalogSource source,
     ILogger<SyncSportsAndLeaguesHandler> logger)
     : ICommandHandler<SyncSportsAndLeaguesCommand, SyncCatalogResult>
@@ -65,22 +65,10 @@ public class SyncSportsAndLeaguesHandler(
     private async Task<int> SyncLeaguesAsync(Sport sport, string sportSlug, CancellationToken ct)
     {
         var leagues = await source.GetLeaguesAsync(sportSlug, ct);
+        var logos = await LeagueCatalog.UpsertAsync(workspace, mediator, sport, source.SourceKey, leagues, ct);
 
-        foreach (var descriptor in leagues)
-        {
-            var league = await workspace.LoadSingleOrDefault(new LeagueBySlugSpec(descriptor.Slug), ct);
-
-            if (league is null)
-            {
-                league = new League(sport.Id, descriptor.Slug, descriptor.Name);
-                workspace.Add(league);
-            }
-
-            league.Describe(descriptor.Name, descriptor.Abbreviation, descriptor.ShortName, descriptor.SupportsTeams);
-            league.TrackSource(source.SourceKey, descriptor.ExternalId);
-        }
-
-        logger.LogInformation("Catalog sync: {Count} league(s) for {Sport}.", leagues.Count, sportSlug);
+        logger.LogInformation(
+            "Catalog sync: {Count} league(s) for {Sport}, {Logos} new league logo(s).", leagues.Count, sportSlug, logos);
         return leagues.Count;
     }
 }

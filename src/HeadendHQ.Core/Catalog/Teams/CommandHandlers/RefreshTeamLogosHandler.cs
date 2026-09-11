@@ -1,7 +1,7 @@
+using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
-using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
 using Mediator;
@@ -9,26 +9,25 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 
-public record RefreshTeamLogosCommand(int TeamId, bool RefreshExisting = false) : ICommand<int>;
+public record RefreshTeamLogosCommand(int TeamId, bool RefreshExisting = false) : ICommand<Team>;
 
 public class RefreshTeamLogosHandler(
     IWorkspace workspace,
+    IUnitOfWork unitOfWork,
     IMediator mediator,
     ISportsCatalogSource source,
     ILogger<RefreshTeamLogosHandler> logger)
-    : ICommandHandler<RefreshTeamLogosCommand, int>
+    : ICommandHandler<RefreshTeamLogosCommand, Team>
 {
-    public async ValueTask<int> Handle(RefreshTeamLogosCommand command, CancellationToken ct)
+    public async ValueTask<Team> Handle(RefreshTeamLogosCommand command, CancellationToken ct)
     {
         var team = await workspace.LoadById<Team, int>(command.TeamId, ct);
 
-        if (team.PreferredLogo() is { } current
-            && current.Label == team.PreferredLogoRel
-            && (!command.RefreshExisting || current.Origin is ImageOrigin.Manual))
-            return 0;
+        if (team.HasFetchedLogos && !command.RefreshExisting)
+            return team;
 
         if (team.ExternalIdFor(source.SourceKey) is not { } externalId)
-            return 0;
+            return team;
 
         var league = await workspace.LoadById<League, int>(team.LeagueId, ct);
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
@@ -42,30 +41,22 @@ public class RefreshTeamLogosHandler(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to read artwork for team {Team}.", team.DisplayName);
-            return 0;
+            return team;
         }
 
         if (candidates.Count == 0)
-            return 0;
+            return team;
 
         team.MarkLogosVerified();
 
-        if (LogoSelection.ForTeam(candidates, team.PreferredLogoRel, verified: true) is not { } chosen)
-            return 0;
+        var download = await CatalogLogoDownloader.DownloadAsync(
+            mediator, LogoPolicy.Team, candidates, ImagePurpose.TeamLogo, command.RefreshExisting, ct);
 
-        var label = LogoSelection.LabelFor(chosen);
+        var dropped = team.StoreFetchedLogos(download);
 
-        if (Logos.Find(team.Logos, LogoVariants.Default, label) is { } held
-            && (!command.RefreshExisting || held.Origin is ImageOrigin.Manual))
-            return 0;
+        await unitOfWork.SaveChanges(ct);
+        await mediator.Send(new DeleteOrphanedImagesCommand(dropped), ct);
 
-        if (await mediator.Send(
-                new MaterializeImageByUrlCommand(
-                    chosen.Url, ImagePurpose.TeamLogo, Revalidate: command.RefreshExisting), ct)
-            is not { } imageId)
-            return 0;
-
-        team.UpsertLogo(label, imageId);
-        return 1;
+        return team;
     }
 }

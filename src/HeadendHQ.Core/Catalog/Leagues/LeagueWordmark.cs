@@ -18,6 +18,9 @@ public class LeagueWordmark : ILogo
     public string? Label => null;
     public ImageOrigin Origin => ImageOrigin.Manual;
     public int ImageId { get; private set; }
+    public bool IsSelected => true;
 
     public void PointAt(int imageId, ImageOrigin origin) => ImageId = imageId;
+
+    public void Select(bool selected) { }
 }

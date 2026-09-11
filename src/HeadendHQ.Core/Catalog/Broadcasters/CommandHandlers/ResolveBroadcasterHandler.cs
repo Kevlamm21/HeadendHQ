@@ -12,7 +12,6 @@ public record ResolveBroadcasterCommand(
 public class ResolveBroadcasterHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
-    IMediator mediator,
     IBroadcasterCatalogSource source)
     : ICommandHandler<ResolveBroadcasterCommand, Broadcaster>
 {
@@ -53,10 +52,6 @@ public class ResolveBroadcasterHandler(
         {
             if (isCanonical)
                 broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, command.Kind);
-
-            if (broadcaster.IsSubscribed)
-                await RefreshBroadcasterLogosHandler.StoreLogoAsync(
-                    broadcaster, detail.Logos, mediator, refreshExisting: false, ct);
 
             if (isCanonical)
             {

@@ -5,19 +5,17 @@ using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-public record UploadBroadcasterLogoCommand(int BroadcasterId, byte[] Bytes) : ICommand<Broadcaster>;
+public record UploadBroadcasterLogoCommand(int BroadcasterId, byte[] Bytes) : ICommand<BroadcasterLogo>;
 
 public class UploadBroadcasterLogoHandler(IWorkspace workspace, IMediator mediator)
-    : ICommandHandler<UploadBroadcasterLogoCommand, Broadcaster>
+    : ICommandHandler<UploadBroadcasterLogoCommand, BroadcasterLogo>
 {
-    public async ValueTask<Broadcaster> Handle(UploadBroadcasterLogoCommand command, CancellationToken ct)
+    public async ValueTask<BroadcasterLogo> Handle(UploadBroadcasterLogoCommand command, CancellationToken ct)
     {
         var broadcaster = await workspace.LoadById<Broadcaster, int>(command.BroadcasterId, ct);
 
         var imageId = await mediator.Send(new UploadImageCommand(command.Bytes, ImagePurpose.BroadcasterLogo), ct);
 
-        broadcaster.UpsertLogo(LogoRels.Dark, imageId, ImageOrigin.Manual);
-
-        return broadcaster;
+        return broadcaster.AddUploadedLogo(imageId);
     }
 }

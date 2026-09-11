@@ -5,9 +5,16 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
 
-internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogger<EspnTransport> logger)
+internal sealed class EspnTransport(
+    HttpClient http, EspnApiGate apiGate, EspnCdnGate cdnGate, ILogger<EspnTransport> logger)
 {
     private const int MaxAttempts = 3;
+
+    private EspnRequestGate GateFor(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Host.EndsWith("espncdn.com", StringComparison.OrdinalIgnoreCase)
+            ? cdnGate
+            : apiGate;
 
     public async Task<string> GetStringAsync(string url, CancellationToken ct)
     {
@@ -23,6 +30,7 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
         string url, string? etag, DateTimeOffset? lastModified, CancellationToken ct)
     {
         var target = url;
+        var gate = GateFor(url);
 
         for (var attempt = 1; ; attempt++)
         {

@@ -14,6 +14,7 @@ public static class WebExtensions
         builder.Services.AddScoped<NightlyJob>();
         builder.Services.AddScoped<CatalogSeedJob>();
         builder.Services.AddScoped<BroadcasterDiscoveryJob>();
+        builder.Services.AddScoped<TeamLogoJob>();
     }
 
     public static void UseJobs(this WebApplication app, bool freshDatabase)

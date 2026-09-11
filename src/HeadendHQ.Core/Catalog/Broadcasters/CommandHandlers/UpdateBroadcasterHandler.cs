@@ -8,9 +8,10 @@ public record UpdateBroadcasterCommand(
     bool? Subscribed,
     bool SetMapping = false,
     int? MapsToBroadcasterId = null,
-    string? IptvGuideNumber = null) : ICommand<Broadcaster>;
+    string? IptvGuideNumber = null,
+    int? SelectedLogoId = null) : ICommand<Broadcaster>;
 
-public class UpdateBroadcasterHandler(IWorkspace workspace, IMediator mediator)
+public class UpdateBroadcasterHandler(IWorkspace workspace)
     : ICommandHandler<UpdateBroadcasterCommand, Broadcaster>
 {
     public async ValueTask<Broadcaster> Handle(UpdateBroadcasterCommand command, CancellationToken ct)
@@ -27,8 +28,8 @@ public class UpdateBroadcasterHandler(IWorkspace workspace, IMediator mediator)
             broadcaster.SetMapping(command.MapsToBroadcasterId, command.IptvGuideNumber);
         }
 
-        if (broadcaster.IsSubscribed)
-            await mediator.Send(new RefreshBroadcasterLogosCommand(broadcaster.Id), ct);
+        if (command.SelectedLogoId is { } logoId)
+            broadcaster.SelectLogo(logoId);
 
         return broadcaster;
     }
