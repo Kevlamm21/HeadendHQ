@@ -1,10 +1,8 @@
-using Hangfire;
 using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 using HeadendHQ.Core.Events.CommandHandlers;
 using HeadendHQ.Core.Iptv.CommandHandlers;
 using HeadendHQ.Core.Settings;
-using HeadendHQ.Core.Titles.CommandHandlers;
 using HeadendHQ.VodLauncher.EventHandlers;
 using Mediator;
 

@@ -1,5 +1,4 @@
 using Hangfire;
-using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.Nfo;
@@ -14,19 +13,17 @@ internal static class GoLiveScheduler
             title.SetLiveJobId(null);
         }
 
-        if (!title.Production.GoesLive || title.StartUtc is not { } startUtc)
+        if (!title.Production.GoesLive || title.IsLive || title.StartUtc is not { } startUtc)
             return;
 
-        if (!LocalDay.IsToday(startUtc))
-            return;
+        var scheduledStartUtc = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
 
-        var scheduledAt = new DateTimeOffset(DateTime.SpecifyKind(startUtc, DateTimeKind.Utc));
-
-        if (scheduledAt <= DateTimeOffset.UtcNow)
+        if (scheduledStartUtc <= DateTime.UtcNow)
             return;
 
         var titleId = title.Id;
         title.SetLiveJobId(jobClient.Schedule<TitleGoesLiveService>(
-            s => s.MarkAsLiveAsync(titleId, CancellationToken.None), scheduledAt));
+            s => s.MarkAsLiveAsync(titleId, scheduledStartUtc, CancellationToken.None),
+            new DateTimeOffset(scheduledStartUtc)));
     }
 }

@@ -14,6 +14,8 @@ public class TitleMetadataUpdatedHandler(IBackgroundJobClient jobClient, IWorksp
         if (title.VodLauncherPath is not null && title.Production.WritesNfo)
             jobClient.Enqueue<NfoWriter>(w => w.WriteForTitleAsync(notification.TitleId, CancellationToken.None));
 
-        GoLiveScheduler.Reschedule(jobClient, title);
+        // An unproduced title gets its go-live scheduled by production.
+        if (notification.ScheduleChanged && title.IsVideoCreated)
+            GoLiveScheduler.Reschedule(jobClient, title);
     }
 }

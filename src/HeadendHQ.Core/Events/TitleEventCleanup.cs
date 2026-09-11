@@ -24,6 +24,7 @@ public static class TitleEventCleanup
 
         foreach (var title in titles)
         {
+            title.MarkRemoved();
             workspace.Remove(title);
             foreach (var id in ArtworkImageIds(title)) candidates.Add(id);
             foreach (var cast in title.Cast) AddId(cast.HeadshotImageId, candidates);

@@ -10,6 +10,7 @@ using HeadendHQ.Core.Events.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
 using HeadendHQ.Core.Titles;
+using HeadendHQ.Core.Titles.CommandHandlers;
 using Mediator;
 using Microsoft.Extensions.Logging;
 
@@ -180,6 +181,8 @@ public class ImportScheduleHandler(
         var sportingEvent = existing
             ?? new SportingEvent(sourceKey, descriptor.ExternalId, league.Id, descriptor.StartUtc);
 
+        var startChanged = existing is not null && existing.StartUtc != descriptor.StartUtc;
+
         sportingEvent.SetSchedule(descriptor.StartUtc, null);
         sportingEvent.SetParticipants(
             homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName, broadcaster.Id);
@@ -195,6 +198,13 @@ public class ImportScheduleHandler(
             workspace.Add(sportingEvent);
 
         await unitOfWork.SaveChanges(ct);
+
+        if (startChanged && sportingEvent.TitleId is { } titleId)
+            await mediator.Send(new UpdateTitleCommand(titleId, new UpdateTitleRequest
+            {
+                StartUtc = sportingEvent.StartUtc,
+                EndUtc = sportingEvent.EndUtc,
+            }), ct);
 
         if (sportingEvent.NeedsTitle && LocalDay.IsToday(sportingEvent.StartUtc))
             await mediator.Send(new ProduceTitleForEventCommand(sportingEvent.Id), ct);

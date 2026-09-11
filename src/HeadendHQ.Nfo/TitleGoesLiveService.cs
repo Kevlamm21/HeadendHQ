@@ -11,13 +11,23 @@ public class TitleGoesLiveService(
     IReadModel readModel,
     ILogger<TitleGoesLiveService> logger)
 {
-    public async Task MarkAsLiveAsync(Guid titleId, CancellationToken ct = default)
+    public async Task MarkAsLiveAsync(Guid titleId, DateTime scheduledStartUtc, CancellationToken ct = default)
     {
-        var exists = await readModel.Count(new EntityByIdSpecification<Title, Guid>(titleId), ct) > 0;
+        var title = await readModel.SingleOrDefault(new EntityByIdSpecification<Title, Guid>(titleId), ct);
 
-        if (!exists)
+        if (title is null)
         {
             logger.LogWarning("Title {Id} no longer exists. Skipping go-live.", titleId);
+            return;
+        }
+
+        if (title.IsLive)
+            return;
+
+        if (title.StartUtc != scheduledStartUtc)
+        {
+            logger.LogInformation("Title {Id} ({Name}) was rescheduled since this go-live was queued. Skipping.",
+                title.Id, title.Name);
             return;
         }
 

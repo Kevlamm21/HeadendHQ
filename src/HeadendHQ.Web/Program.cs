@@ -7,7 +7,6 @@ using HeadendHQ.Mediator;
 using HeadendHQ.Nfo;
 using HeadendHQ.SixLabors;
 using HeadendHQ.VodLauncher;
-using HeadendHQ.Web;
 using HeadendHQ.Web.Infrastructure;
 using HeadendHQ.WebScraping;
 

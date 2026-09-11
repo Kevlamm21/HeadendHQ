@@ -57,6 +57,7 @@ public class VodCreationService(
 
             title.SetVodLauncherPath(await CreateVideoAsync(title, libraryPath, ct));
             title.MarkVideoCreated(true);
+            title.MarkProduced();
         }
 
         if (!production.WritesNfo)

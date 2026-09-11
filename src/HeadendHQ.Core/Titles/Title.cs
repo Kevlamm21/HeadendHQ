@@ -66,8 +66,8 @@ public class Title : Entity<Guid>
 
     public void Update(UpdateTitleRequest request)
     {
-        var nfoChanged = request.IsLive is not null
-            || (request.StartUtc is not null && request.StartUtc != StartUtc);
+        var scheduleChanged = request.StartUtc is not null && request.StartUtc != StartUtc;
+        var nfoChanged = request.IsLive is not null || scheduleChanged;
 
         if (request.Plot is not null) { Plot = request.Plot; nfoChanged = true; }
         if (request.Tagline is not null) { Tagline = request.Tagline; nfoChanged = true; }
@@ -100,7 +100,7 @@ public class Title : Entity<Guid>
         if (request.AdbCommand is not null) AdbCommand = Blank(request.AdbCommand);
 
         if (nfoChanged)
-            RecordEvent(new TitleMetadataUpdated(Id));
+            RecordEvent(new TitleMetadataUpdated(Id, scheduleChanged));
 
         UpdatedAt = DateTimeOffset.UtcNow;
     }
@@ -132,6 +132,10 @@ public class Title : Entity<Guid>
 
     public void MarkVideoCreated(bool created) => IsVideoCreated = created;
 
+    public void MarkProduced() => RecordEvent(new TitleProduced(Id));
+
+    public void MarkRemoved() => RecordEvent(new TitleRemoved(Id, LiveJobId));
+
     public void SetLiveJobId(string? jobId) => LiveJobId = jobId;
 
     public void MarkLive(bool isLive)
@@ -145,7 +149,9 @@ public class Title : Entity<Guid>
 }
 
 public record TitleCreated(Guid TitleId, DateTime? StartUtc) : IEvent;
-public record TitleMetadataUpdated(Guid TitleId) : IEvent;
+public record TitleMetadataUpdated(Guid TitleId, bool ScheduleChanged = false) : IEvent;
+public record TitleProduced(Guid TitleId) : IEvent;
+public record TitleRemoved(Guid TitleId, string? LiveJobId) : IEvent;
 
 public record TitleRequest
 {
