@@ -3,13 +3,6 @@ using Mediator;
 
 namespace HeadendHQ.Web.Api;
 
-/// <summary>
-/// Sporting events: the scraped schedule, ahead of anything being produced for Jellyfin.
-/// <para>
-/// Distinct from <c>/titles</c> on purpose. An event is what is happening; a title is the artifact we
-/// build for one that is due. Events cover the whole scrape window, titles only today's.
-/// </para>
-/// </summary>
 public static class EventEndpoints
 {
     public static void MapEventEndpoints(this WebApplication app)
@@ -34,7 +27,7 @@ public static class EventEndpoints
             Results.Ok(await mediator.Send(new ImportScheduleCommand(), ct)))
             .WithName("ImportSchedule")
             .WithSummary("Scrape the schedule")
-            .WithDescription("Pulls the schedule window from every source into sporting events, then queues each new event's detail lookup. Titles are not created here — that happens for the day's events, once detail has been collected.");
+            .WithDescription("Pulls the schedule window from every source and keeps the games you follow (a followed team, or the league for sports without teams) on a subscribed broadcaster. Each kept game's detail — venue, note, roster, depth chart, headshots — is collected before its event is created, and a title is produced for any due today. Runs inline, so a first scrape can take several minutes.");
 
         events.MapPost("/{id:guid}/detail", async (Guid id, IMediator mediator, CancellationToken ct) =>
         {
@@ -43,7 +36,7 @@ public static class EventEndpoints
         })
             .WithName("CollectEventDetail")
             .WithSummary("Collect an event's detail now")
-            .WithDescription("Runs the venue, note, series and cast lookup inline instead of waiting for the queued job.");
+            .WithDescription("Re-runs the venue, note, series and cast lookup for an existing event, and produces its title if it is due today.");
 
         events.MapPost("/titles", async (int? leadDays, IMediator mediator, CancellationToken ct) =>
             Results.Ok(new { created = await mediator.Send(new CreateTitlesForTodayCommand(leadDays ?? 0), ct) }))

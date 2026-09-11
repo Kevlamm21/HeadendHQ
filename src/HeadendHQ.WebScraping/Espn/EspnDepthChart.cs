@@ -5,18 +5,11 @@ using HeadendHQ.WebScraping.Espn.Transport;
 
 namespace HeadendHQ.WebScraping.Espn;
 
-/// <summary>
-/// Depth charts are the only ESPN source that knows who actually starts. They live on
-/// the core API rather than the site API, and reference athletes by URL rather than
-/// inlining them — but the athlete id is in the URL, so no per-athlete fetch is needed.
-/// Not supported for college football, which returns a 400.
-/// </summary>
 internal static partial class EspnDepthChart
 {
     [GeneratedRegex(@"/athletes/(\d+)", RegexOptions.Compiled)]
     private static partial Regex AthleteIdPattern { get; }
 
-    /// <summary>Athlete id to best (lowest) depth rank. Rank 1 is a starter.</summary>
     public static async Task<IReadOnlyDictionary<string, int>> FetchAsync(
         EspnTransport transport,
         string sportSlug,
@@ -26,8 +19,6 @@ internal static partial class EspnDepthChart
         ILogger logger,
         CancellationToken ct)
     {
-        // NBA and NHL seasons straddle the new year, so a January game belongs to the
-        // previous season. Try the event's year, then fall back one.
         foreach (var season in new[] { seasonYear, seasonYear - 1 })
         {
             var ranks = await TryFetchAsync(transport, sportSlug, leagueSlug, teamId, season, logger, ct);
@@ -62,7 +53,6 @@ internal static partial class EspnDepthChart
 
             foreach (var chart in items.EnumerateArray())
             {
-                // "positions" is an object keyed by position slug (lde, nt, rde, ...).
                 if (!chart.TryGetProperty("positions", out var positions) ||
                     positions.ValueKind != JsonValueKind.Object)
                     continue;
@@ -73,7 +63,6 @@ internal static partial class EspnDepthChart
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
         {
-            // College football is simply unsupported; anything else is transient.
             logger.LogDebug(ex, "No {League} depth chart for team {TeamId} in season {Season}.", leagueSlug, teamId, season);
         }
 
@@ -104,7 +93,6 @@ internal static partial class EspnDepthChart
 
             var id = match.Groups[1].Value;
 
-            // A player appears in several charts (offense, special teams); keep the best.
             if (!ranks.TryGetValue(id, out var existing) || rank < existing)
                 ranks[id] = rank;
         }

@@ -2,12 +2,6 @@ using HeadendHQ.Core.Catalog.Broadcasters;
 
 namespace HeadendHQ.Core.Catalog.Sources;
 
-/// <summary>
-/// Source-neutral shapes returned by catalog and schedule sources. Nothing ESPN-specific may appear
-/// here: this file is the seam a second source would implement against.
-/// </summary>
-
-/// <summary>One candidate image, not yet downloaded.</summary>
 public record ImageCandidate(string Rel, string Url, int? Width = null, int? Height = null, DateTimeOffset? UpdatedAtUtc = null);
 
 public record SportDescriptor(string ExternalId, string Slug, string Name);
@@ -53,7 +47,6 @@ public record BroadcasterDescriptor(
     BroadcasterKind Kind = BroadcasterKind.Unknown,
     IReadOnlyList<ImageCandidate>? Logos = null);
 
-/// <summary>Where a single event can be watched.</summary>
 public record BroadcastCandidate(
     string ExternalId,
     string Slug,
@@ -68,7 +61,6 @@ public record CompetitorDescriptor(
     bool IsHome,
     IReadOnlyList<ImageCandidate>? Logos = null);
 
-/// <summary>An event as the schedule source sees it, before it becomes a Title.</summary>
 public record ScheduledEventDescriptor(
     string ExternalId,
     string SportSlug,
@@ -82,7 +74,6 @@ public record ScheduledEventDescriptor(
     int? SeasonYear = null,
     int? SeasonType = null);
 
-/// <summary>The extra detail a second call per event buys: venue, notes, series and cast.</summary>
 public record EventDetailDescriptor(
     string? VenueName = null,
     string? Note = null,
@@ -92,10 +83,6 @@ public record EventDetailDescriptor(
     int? SeasonType = null,
     IReadOnlyList<CastCandidate>? Cast = null);
 
-/// <summary>
-/// An athlete proposed for a title's cast, with the signals that justify billing them. Ranking is
-/// the consumer's job, so a second source only has to say what it knows.
-/// </summary>
 public record CastCandidate(
     AthleteDescriptor Athlete,
     bool IsHome,
@@ -107,12 +94,6 @@ public record CastCandidate(
     int? DepthRank = null,
     string? InjuryStatus = null);
 
-/// <param name="BroadcasterSlugs">
-/// The services the caller subscribes to. A hint about what matters, never an exclusion filter: a
-/// source must still return events on broadcasters it has not been told about, or a network could
-/// never be discovered — and so could never be subscribed to. The caller applies the subscription
-/// filter itself, once each broadcaster has been recorded.
-/// </param>
 public record ScheduleQuery(
     DateOnly From,
     DateOnly To,

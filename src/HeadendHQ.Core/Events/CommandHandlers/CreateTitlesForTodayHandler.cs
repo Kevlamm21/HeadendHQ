@@ -7,18 +7,6 @@ namespace HeadendHQ.Core.Events.CommandHandlers;
 
 public record CreateTitlesForTodayCommand(int LeadDays = 0) : ICommand<int>;
 
-/// <summary>
-/// The daily sweep: finds every event that is due and still has no title, and produces one.
-/// <para>
-/// Titles are made on the day rather than for the whole scrape window, so a week of VOD folders and
-/// dummy videos does not accumulate ahead of time. The mapping itself lives in
-/// <see cref="ProduceTitleForEventHandler"/>; this only decides what is due.
-/// </para>
-/// <para>
-/// A safety net as much as a driver — an event whose detail lands during the day produces its own
-/// title straight away, so this mostly catches anything that was still in flight last night.
-/// </para>
-/// </summary>
 public class CreateTitlesForTodayHandler(
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
@@ -28,10 +16,7 @@ public class CreateTitlesForTodayHandler(
 {
     public async ValueTask<int> Handle(CreateTitlesForTodayCommand command, CancellationToken ct)
     {
-        // Windowed in local time: "today's games" means the user's day, not UTC's.
-        var localStart = DateTime.Now.Date;
-        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(localStart, TimeZoneInfo.Local);
-        var toUtc = TimeZoneInfo.ConvertTimeToUtc(localStart.AddDays(1 + command.LeadDays), TimeZoneInfo.Local);
+        var (fromUtc, toUtc) = LocalDay.UtcWindow(command.LeadDays);
 
         var due = await workspace.Load(new EventsNeedingTitlesSpec(fromUtc, toUtc), ct);
 
@@ -52,7 +37,6 @@ public class CreateTitlesForTodayHandler(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // One unproducible game must not stop tonight's other titles.
                 logger.LogError(ex, "Failed to create a title for event {Id} ({Away} at {Home}).",
                     sportingEvent.Id, sportingEvent.AwayTeamName, sportingEvent.HomeTeamName);
             }

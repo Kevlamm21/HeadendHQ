@@ -2,13 +2,6 @@ using HeadendHQ.Core.Catalog.Sources;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
 
-/// <summary>
-/// Downloads logos and headshots through the same paced, correctly-headered transport as JSON.
-/// <para>
-/// Conditional headers are the point: a nightly refresh of a league's team logos costs a handful of
-/// 304s and no bytes at all unless something genuinely changed.
-/// </para>
-/// </summary>
 internal sealed class EspnImageFetcher(EspnTransport transport) : IImageFetcher
 {
     public async Task<FetchedImage?> FetchAsync(

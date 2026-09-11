@@ -7,11 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-/// <summary>
-/// Downloads a broadcaster's mark. Like a league's, this is on demand rather than at discovery: the
-/// crawl walks ~1300 networks, most of them local affiliates with no artwork on file and no chance of
-/// ever appearing on a poster.
-/// </summary>
 public record RefreshBroadcasterLogosCommand(int BroadcasterId, bool RefreshExisting = false) : ICommand<int>;
 
 public class RefreshBroadcasterLogosHandler(
@@ -46,10 +41,6 @@ public class RefreshBroadcasterLogosHandler(
         return await StoreLogoAsync(broadcaster, detail?.Logos, mediator, command.RefreshExisting, ct);
     }
 
-    /// <summary>
-    /// Shared with the handlers that already hold a broadcaster's record, so a mark is downloaded
-    /// from detail in hand rather than by asking for it a second time.
-    /// </summary>
     internal static async Task<int> StoreLogoAsync(
         Broadcaster broadcaster, IReadOnlyList<ImageCandidate>? candidates, IMediator mediator,
         bool refreshExisting, CancellationToken ct)

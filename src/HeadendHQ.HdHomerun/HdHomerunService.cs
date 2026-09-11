@@ -9,11 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.HdHomerun;
 
-/// <summary>
-/// The HDHomeRun implementation of <see cref="IIptvService"/>. The programme guide comes from
-/// SiliconDust's cloud (it needs the device's subscription); the channel lineup comes straight off
-/// the local tuner's <c>lineup.json</c>, a sibling of the configured <c>discover.json</c> URL.
-/// </summary>
 public class HdHomerunService(
     HttpClient httpClient,
     IWorkspace workspace,

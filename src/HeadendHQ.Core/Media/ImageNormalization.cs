@@ -2,7 +2,6 @@ namespace HeadendHQ.Core.Media.CommandHandlers;
 
 internal static class ImageNormalization
 {
-    /// <summary>Normalization is chosen by purpose, so every entry point resolves it the same way.</summary>
     public static Task<byte[]> NormalizeAsync(
         this IImageNormalizer normalizer, byte[] bytes, ImagePurpose purpose, CancellationToken ct) =>
         purpose switch

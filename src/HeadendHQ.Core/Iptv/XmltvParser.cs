@@ -4,10 +4,8 @@ using System.Xml.Linq;
 
 namespace HeadendHQ.Core.Iptv;
 
-/// <summary>One <c>&lt;channel&gt;</c> block: its id and every name the document offers for it.</summary>
 public record XmltvChannel(string Id, IReadOnlyList<string> DisplayNames);
 
-/// <summary>One <c>&lt;programme&gt;</c> block, times already normalised to UTC.</summary>
 public record XmltvProgramme(
     string ChannelId,
     string? Title,
@@ -18,16 +16,6 @@ public record XmltvProgramme(
 
 public record XmltvGuide(IReadOnlyList<XmltvChannel> Channels, IReadOnlyList<XmltvProgramme> Programmes);
 
-/// <summary>
-/// Reads an XMLTV document into channels and programmes. Knows nothing about lineups or guide
-/// numbers — tying a channel id to something tunable is the caller's job, because that depends on
-/// the device rather than on the format.
-/// <para>
-/// Streamed with an <see cref="XmlReader"/> rather than loaded as an <see cref="XDocument"/>: a
-/// fortnight of guide for a full lineup runs to megabytes, and the string is already in memory once
-/// by the time it gets here.
-/// </para>
-/// </summary>
 public static class XmltvParser
 {
     public static XmltvGuide Parse(string? xml)
@@ -57,8 +45,6 @@ public static class XmltvParser
                 continue;
             }
 
-            // ReadFrom consumes the whole subtree and leaves the reader on the following node, so
-            // the loop must not advance again here.
             var name = reader.Name;
             var element = (XElement)XNode.ReadFrom(reader);
 
@@ -99,7 +85,6 @@ public static class XmltvParser
         if (ParseTimestamp((string?)element.Attribute("start")) is not { } startUtc)
             return null;
 
-        // A missing stop is legal; three hours matches the fallback a SportingEvent already uses.
         var stopUtc = ParseTimestamp((string?)element.Attribute("stop")) ?? startUtc.AddHours(3);
 
         return new XmltvProgramme(
@@ -111,20 +96,11 @@ public static class XmltvParser
             stopUtc);
     }
 
-    /// <summary>
-    /// The first element of that name with content. A document may repeat <c>title</c> once per
-    /// language; the first is the one the device would show.
-    /// </summary>
     private static string? Text(XElement element, string name) =>
         element.Elements(name)
             .Select(e => e.Value.Trim())
             .FirstOrDefault(v => v.Length > 0);
 
-    /// <summary>
-    /// XMLTV timestamps are <c>YYYYMMDDHHMMSS</c> with an optional <c>+HHMM</c> offset, and the
-    /// seconds may be omitted. An absent offset is read as UTC — the alternative is the machine's
-    /// local zone, which in a container is meaningless.
-    /// </summary>
     public static DateTime? ParseTimestamp(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))

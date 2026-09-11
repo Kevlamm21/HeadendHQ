@@ -5,13 +5,6 @@ using HeadendHQ.Core.Titles;
 
 namespace HeadendHQ.Core.Events;
 
-/// <summary>
-/// A sports <see cref="Title"/> and the <see cref="SportingEvent"/> it was produced from are one
-/// lifecycle, not two — neither should outlive the other. This removes whichever set of events and
-/// titles a caller has already paired up, then sweeps any artwork/headshot images nothing left in the
-/// system still references. Callers are responsible for finding the pairing; this only removes exactly
-/// what it's given.
-/// </summary>
 public static class TitleEventCleanup
 {
     public static async Task<int> RemoveAsync(
@@ -39,9 +32,6 @@ public static class TitleEventCleanup
         if (candidates.Count == 0)
             return 0;
 
-        // Built after the rows above are gone, so a blob kept alive only by them is correctly seen
-        // as unreferenced. No Origin guard needed — a real reference scan across every surviving
-        // title and event already proves an image is safe to delete, Manual or Fetched alike.
         var removedEventIds = events.Select(e => e.Id).ToHashSet();
         var removedTitleIds = titles.Select(t => t.Id).ToHashSet();
         var referenced = new HashSet<int>();

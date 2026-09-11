@@ -7,10 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
-/// <summary>
-/// Reads ESPN's media records. <see cref="ListBroadcasterIdsAsync"/> pages the media index (two
-/// requests for ~1309 ids); <see cref="GetBroadcasterAsync"/> reads one record per request.
-/// </summary>
 internal sealed class EspnBroadcasterCatalogSource(
     EspnTransport transport,
     ILogger<EspnBroadcasterCatalogSource> logger) : IBroadcasterCatalogSource
@@ -68,7 +64,6 @@ internal sealed class EspnBroadcasterCatalogSource(
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
         {
-            // A broadcaster we cannot describe still works as a bare slug from the feed.
             logger.LogWarning(ex, "Failed to resolve ESPN media {MediaId}.", externalId);
             return null;
         }

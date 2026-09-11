@@ -9,11 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 
-/// <summary>
-/// Downloads one team's marks from the per-team lookup — the source ESPN is actually right about.
-/// Used when the user picks a different variant than the one already held, which the league-wide
-/// refresh has no reason to fetch.
-/// </summary>
 public record RefreshTeamLogosCommand(int TeamId, bool RefreshExisting = false) : ICommand<int>;
 
 public class RefreshTeamLogosHandler(
@@ -53,8 +48,6 @@ public class RefreshTeamLogosHandler(
         if (candidates.Count == 0)
             return 0;
 
-        // This endpoint is the trustworthy one, so what it returns settles the team's variants for
-        // good — the league refresh no longer has to spend a lookup on it.
         team.MarkLogosVerified();
 
         if (LogoSelection.ForTeam(candidates, team.PreferredLogoRel, verified: true) is not { } chosen)

@@ -1,13 +1,7 @@
+using HeadendHQ.Core.Catalog.Sources;
+
 namespace HeadendHQ.Core.Events;
 
-/// <summary>
-/// An athlete billed on this event, in the order they should appear.
-/// <para>
-/// Denormalized to exactly what a title's cast needs. The players themselves are not an entity we
-/// keep: they are read out of the source's response, ranked, and the handful that get billed are
-/// written down here. There is nothing to join back to.
-/// </para>
-/// </summary>
 public class SportingEventCastMember
 {
     private SportingEventCastMember() { }
@@ -28,5 +22,6 @@ public class SportingEventCastMember
     public int Order { get; private set; }
 }
 
-/// <summary>One player the ranker chose to bill, ready to be written down.</summary>
 public record BilledAthlete(string Name, string? Role, int? HeadshotImageId);
+
+public record EventDetail(EventDetailDescriptor? Source, IReadOnlyList<BilledAthlete> Cast);

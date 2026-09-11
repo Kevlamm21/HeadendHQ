@@ -10,9 +10,6 @@ namespace HeadendHQ.Mediator;
 
 public static class MediatorExtensions
 {
-	// This one is a little funny looking because the Mediator library uses a source generator.  The action
-	// that calls AddMediator has to come from the host application, since that is where the source generator
-	// needs to run.
 	public static void ConfigureMediator(this WebApplicationBuilder builder, Action<IServiceCollection> configure)
 	{
 		configure(builder.Services);

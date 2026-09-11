@@ -42,13 +42,6 @@ public static class SettingsEndpoints
             .WithSummary("Update schedule scraping settings")
             .WithDescription("Partially updates schedule scraping settings. Only non-null fields are applied.");
 
-        // What used to be "sport preferences" is now follow state on the catalog itself:
-        // PATCH /catalog/leagues/{id} and PATCH /catalog/teams/{id}.
-
-        // Source pacing (request rate, spacing, jitter, concurrency, per-run budget, user agent) is
-        // not a per-install preference, so it lives in HeadendHQ.Core.Settings.SourceSettings as
-        // constants rather than behind an endpoint.
-
         group.MapGet("/vod-launcher", async (IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new GetVodLauncherSettingsQuery(), ct)))
             .WithName("GetVodLauncherSettings")

@@ -17,7 +17,6 @@ public class TeamLogo : ILogo
     public int Id { get; init; }
     public int TeamId { get; private set; }
 
-    /// <summary>Teams have no editions of their own; carried so the collection matches a league's.</summary>
     public string Variant { get; private set; } = LogoVariants.Default;
 
     public string? Label { get; private set; } = LogoRels.Default;

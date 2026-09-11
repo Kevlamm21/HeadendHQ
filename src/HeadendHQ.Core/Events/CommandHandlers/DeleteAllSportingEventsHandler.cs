@@ -4,10 +4,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Events.CommandHandlers;
 
-/// <summary>
-/// Debugging aid: removes every sporting event, and any title produced from one, so schedule and
-/// title production can be replayed from scratch without dropping the database.
-/// </summary>
 public record DeleteAllSportingEventsCommand : ICommand<int>;
 
 public class DeleteAllSportingEventsHandler(IWorkspace workspace)

@@ -1,21 +1,9 @@
 using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Events;
 
-/// <summary>
-/// A scheduled game, as the schedule source sees it.
-/// <para>
-/// This is the sports domain in full: which league, which teams, where it can be watched, who is
-/// billed. It is deliberately separate from <see cref="Titles.Title"/> — a title is the flattened,
-/// type-agnostic artifact we produce for Jellyfin, and keeping the two apart means a video game or a
-/// movie can grow its own equally rich entity and map into the same title without the NFO and
-/// artwork writers learning anything about sports.
-/// </para>
-/// <para>
-/// Events are scraped for the whole window; a title is produced only when the game is due.
-/// </para>
-/// </summary>
 public class SportingEvent : Entity<Guid>
 {
     private SportingEvent() { }
@@ -39,36 +27,29 @@ public class SportingEvent : Entity<Guid>
     public int? AwayTeamId { get; private set; }
     public int? BroadcasterId { get; private set; }
 
-    /// <summary>Kept alongside the ids so an event still reads correctly if a team is later removed.</summary>
     public string HomeTeamName { get; private set; } = string.Empty;
     public string AwayTeamName { get; private set; } = string.Empty;
 
     public DateTime StartUtc { get; private set; }
     public DateTime EndUtc { get; private set; }
 
-    /// <summary>Which edition of the league this belongs to. See <see cref="LogoVariants"/>.</summary>
     public string Variant { get; private set; } = LogoVariants.Default;
 
     public int? SeasonYear { get; private set; }
 
-    /// <summary>Source season type: 1 preseason, 2 regular, 3 postseason, 4 off-season.</summary>
     public int? SeasonType { get; private set; }
 
     public string? VenueName { get; private set; }
 
-    /// <summary>The competition note, e.g. "NBA Cup - Semifinals". Also what decides the variant.</summary>
     public string? Note { get; private set; }
 
     public string? SeriesType { get; private set; }
     public string? SeriesSummary { get; private set; }
 
-    /// <summary>Where the event can be watched, when the source offers a usable link.</summary>
     public string? WatchUrl { get; private set; }
 
-    /// <summary>Set once detail collection has run, so it never repeats for the same event.</summary>
     public DateTimeOffset? DetailsFetchedAtUtc { get; private set; }
 
-    /// <summary>The title produced from this event, once it has been produced.</summary>
     public Guid? TitleId { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; } = DateTimeOffset.UtcNow;
@@ -116,10 +97,6 @@ public class SportingEvent : Entity<Guid>
         Touch();
     }
 
-    /// <summary>
-    /// Applies the second, per-event lookup. Recorded even when the source returned nothing, so a
-    /// game with no venue on file is not re-requested every night.
-    /// </summary>
     public void ApplyDetails(
         string? venueName, string? note, string? seriesType, string? seriesSummary, string variant)
     {
@@ -131,6 +108,19 @@ public class SportingEvent : Entity<Guid>
         DetailsFetchedAtUtc = DateTimeOffset.UtcNow;
         Touch();
     }
+
+    public void ApplyDetail(EventDetail detail)
+    {
+        var source = detail.Source;
+
+        SetCast(detail.Cast);
+        SetSeason(source?.SeasonYear, source?.SeasonType);
+        ApplyDetails(
+            source?.VenueName, source?.Note, source?.SeriesType, source?.SeriesSummary,
+            LeagueVariantResolver.Resolve(source?.Note, SeasonType));
+    }
+
+    public void RefreshVariant() => SetVariant(LeagueVariantResolver.Resolve(Note, SeasonType));
 
     public void SetCast(IEnumerable<BilledAthlete> billedInOrder)
     {
@@ -144,10 +134,6 @@ public class SportingEvent : Entity<Guid>
         Touch();
     }
 
-    /// <summary>
-    /// Something the detail lookup produced has been discarded, so the answer we recorded is no
-    /// longer the whole truth. Clearing the stamp is what puts the event back in the queue.
-    /// </summary>
     public void ResetDetails()
     {
         DetailsFetchedAtUtc = null;
@@ -160,7 +146,6 @@ public class SportingEvent : Entity<Guid>
         Touch();
     }
 
-    /// <summary>The title was deleted or expired; the event may be produced again if still relevant.</summary>
     public void DetachTitle()
     {
         TitleId = null;

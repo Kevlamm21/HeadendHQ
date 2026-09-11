@@ -9,18 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Sports.CommandHandlers;
 
-/// <summary>
-/// Walks the source's sport and league catalog and mirrors it into the database.
-/// <para>
-/// Only names are recorded — no artwork at all. ESPN publishes 356 leagues, and a logo row now means
-/// bytes on disk, so recording every candidate would mean thousands of downloads for leagues nobody
-/// follows. Artwork arrives when a league is actually followed, via <see cref="RefreshLeagueLogosCommand"/>.
-/// </para>
-/// <para>
-/// Idempotent: existing rows are matched by slug and updated in place, so a re-run corrects drift
-/// without duplicating anything. Rows are flushed per sport as the walk proceeds.
-/// </para>
-/// </summary>
 public record SyncSportsAndLeaguesCommand : ICommand<SyncCatalogResult>;
 
 public record SyncCatalogResult(int SportsExamined, int LeaguesUpserted);
@@ -41,9 +29,6 @@ public class SyncSportsAndLeaguesHandler(
 
         foreach (var descriptor in sports)
         {
-            // Every sport is recorded whether or not we walk it, so a sport outside the
-            // discovery set can still be pulled on demand later without a second discovery of
-            // the sport list itself.
             var sport = await UpsertSportAsync(descriptor, ct);
 
             if (!SourceSettings.CoversSport(descriptor.Slug))
@@ -73,7 +58,6 @@ public class SyncSportsAndLeaguesHandler(
 
         sport.TrackSource(source.SourceKey, descriptor.ExternalId);
 
-        // The league loop below needs the sport's identity, which only exists after an insert.
         await unitOfWork.SaveChanges(ct);
         return sport;
     }

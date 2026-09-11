@@ -10,16 +10,6 @@ using Mediator;
 
 namespace HeadendHQ.Web.Jobs;
 
-/// <summary>
-/// The nightly pass: refresh what the schedule depends on, import it, produce today's titles, then
-/// clean up behind yesterday's.
-/// <para>
-/// A Hangfire recurring job rather than a hosted service, so it shares one scheduler and one
-/// dashboard with the per-event detail jobs it enqueues — and so a run can be triggered by hand
-/// without restarting the application. Every step is isolated: one upstream failing must not stop
-/// the rest of the night's work.
-/// </para>
-/// </summary>
 public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
 {
     public const string RecurringJobId = "nightly";
@@ -37,8 +27,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "IPTV programme-guide refresh failed.");
         }
 
-        // Before the scrape's affiliate matching: the lineup is the authority on which local
-        // stations this house can tune. Rematch after it, in case discovery ran before it existed.
         try
         {
             await mediator.Send(new RefreshIptvLineupCommand(), ct);
@@ -51,8 +39,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "IPTV lineup refresh failed.");
         }
 
-        // After the lineup, not before: a guide entry is only kept if its channel resolves to
-        // something tunable, and the lineup is what says which those are.
         try
         {
             var parsed = await mediator.Send(new ParseIptvGuideCommand(), ct);
@@ -63,8 +49,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "Programme-guide parsing failed.");
         }
 
-        // Ahead of the scrape: events are created against team colours and logo URLs, so those
-        // should be current before any event references them.
         try
         {
             await mediator.Send(new RefreshFollowedLeaguesCommand(), ct);
@@ -72,6 +56,20 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Followed-league refresh failed.");
+        }
+
+        // Must run before anything creates titles, or new titles get their production enqueued twice.
+        try
+        {
+            var resumed = await mediator.Send(new ResumeTitleProductionCommand(), ct);
+            if (resumed.AdbMappings > 0 || resumed.Productions > 0)
+                logger.LogInformation(
+                    "Resumed {Adb} ADB mapping(s) and {Production} production job(s) left by earlier runs.",
+                    resumed.AdbMappings, resumed.Productions);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Resuming outstanding title production failed.");
         }
 
         try
@@ -89,8 +87,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "Schedule scrape failed.");
         }
 
-        // After the scrape, because that is what discovers broadcasters in the first place. Most
-        // resolve on first sighting; this catches the ones whose lookup failed that night.
         try
         {
             var resolved = await mediator.Send(new RefreshBroadcasterDetailsCommand(), ct);
@@ -102,8 +98,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
             logger.LogError(ex, "Broadcaster detail refresh failed.");
         }
 
-        // Detail collection is queued per event by the scrape. Completed detail jobs produce
-        // today's titles themselves; this sweep catches anything that was already ready at startup.
         try
         {
             var created = await mediator.Send(new CreateTitlesForTodayCommand(), ct);
@@ -131,27 +125,6 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "VOD cleanup failed.");
-        }
-
-        try
-        {
-            var count = await mediator.Send(new MapPendingAdbCommand(), ct);
-            if (count > 0)
-                logger.LogInformation("Re-enqueued {Count} title(s) still awaiting ADB mapping.", count);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Pending ADB mapping sweep failed.");
-        }
-
-        try
-        {
-            var count = await mediator.Send(new CreateVodLaunchersCommand(), ct);
-            logger.LogInformation("Enqueued {Count} production jobs for today.", count);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Production job enqueueing failed.");
         }
 
         logger.LogInformation("Nightly job complete.");

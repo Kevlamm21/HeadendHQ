@@ -1,5 +1,4 @@
 using Hangfire;
-using HeadendHQ.Core;
 using HeadendHQ.Core.Titles;
 using Mediator;
 
@@ -9,8 +8,8 @@ public class TitleCreatedHandler(IBackgroundJobClient jobClient) : INotification
 {
     public ValueTask Handle(TitleCreated notification, CancellationToken cancellationToken)
     {
-        var jobId = jobClient.Enqueue<AdbMappingService>(s => s.MapSingleAsync(notification.TitleId, CancellationToken.None));
-        jobClient.ContinueJobWith<ICreationService>(jobId, s => s.CreateForTitleAsync(notification.TitleId, CancellationToken.None));
+        TitleProductionJobs.EnqueueAdbMapping(jobClient, notification.TitleId);
+        TitleProductionJobs.EnqueueProduction(jobClient, notification.TitleId);
         return ValueTask.CompletedTask;
     }
 }

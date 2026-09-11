@@ -2,18 +2,6 @@ using HeadendHQ.Core.Catalog.Sources;
 
 namespace HeadendHQ.Core.Events;
 
-/// <summary>
-/// Decides which players a game should bill, and in what order.
-/// <para>
-/// Lives in the domain rather than in a source adapter because "who matters in this game" is our
-/// judgement, not ESPN's. A second source only has to report the signals it knows about; every term
-/// is additive, so a missing signal contributes nothing instead of needing a special case.
-/// </para>
-/// <para>
-/// Keyed by sport slug rather than an enum, so a sport we have never seen scores on generic
-/// fallbacks instead of failing.
-/// </para>
-/// </summary>
 public static class CastRanker
 {
     private const int LeaderScore = 100;
@@ -36,8 +24,6 @@ public static class CastRanker
         ["PK"] = 5, ["K"] = 5, ["P"] = 5, ["LS"] = 3,
     };
 
-    // Basketball positions barely differentiate anyone; the depth chart decides the starting five,
-    // so these weights stay flat on purpose.
     private static readonly Dictionary<string, int> BasketballWeights = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Dictionary<string, int> BaseballWeights = new(StringComparer.OrdinalIgnoreCase)
@@ -63,11 +49,6 @@ public static class CastRanker
         "Out", "Injured Reserve", "Suspension",
     };
 
-    /// <summary>
-    /// Picks at most <paramref name="maxPerTeam"/> from each side, then alternates them so both
-    /// teams lead the cast — a client that truncates the actor list would otherwise show only
-    /// the home team.
-    /// </summary>
     public static IReadOnlyList<CastCandidate> Rank(
         IEnumerable<CastCandidate> candidates, string sportSlug, int maxPerTeam)
     {
@@ -131,8 +112,6 @@ public static class CastRanker
         if (position is null)
             return fallback;
 
-        // Sources report either an abbreviation or a display name; try the token as given, then its
-        // initials, which is what turns "Starting Pitcher" into "SP".
         if (weights.TryGetValue(position, out var direct))
             return direct;
 

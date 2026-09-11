@@ -4,7 +4,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-/// <summary>National networks (no call-sign token), local lineup-matched affiliates, and everything else.</summary>
 public enum BroadcasterAffiliateFilter
 {
     National,

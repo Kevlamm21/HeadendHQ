@@ -9,10 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 
-/// <summary>
-/// Walks one sport's leagues on demand — the escape hatch for anything outside
-/// <see cref="SourceSettings.DiscoverySportSlugs"/>. Idempotent, so re-running it is harmless.
-/// </summary>
 public record SyncSportLeaguesCommand(string SportSlug) : ICommand<int>;
 
 public class SyncSportLeaguesHandler(
@@ -30,7 +26,6 @@ public class SyncSportLeaguesHandler(
 
         if (sport is null)
         {
-            // The sport list is one request, so a sport we have never recorded is cheap to add.
             var descriptor = (await source.GetSportsAsync(ct))
                 .FirstOrDefault(s => s.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase))
                 ?? throw new NotFoundException<Sport>(slug);

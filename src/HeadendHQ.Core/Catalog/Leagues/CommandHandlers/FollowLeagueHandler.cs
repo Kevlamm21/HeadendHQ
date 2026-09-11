@@ -1,13 +1,10 @@
 using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
+using HeadendHQ.Core.Catalog.Teams.Specifications;
 using HeadendHQ.Core.Shared;
 using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 
-/// <summary>
-/// Following a league is the moment its teams become worth fetching, so the follow does that work
-/// rather than leaving the user with an empty team picker.
-/// </summary>
 public record FollowLeagueCommand(int LeagueId, bool Followed) : ICommand<League>;
 
 public class FollowLeagueHandler(IWorkspace workspace, IMediator mediator)
@@ -16,12 +13,19 @@ public class FollowLeagueHandler(IWorkspace workspace, IMediator mediator)
     public async ValueTask<League> Handle(FollowLeagueCommand command, CancellationToken ct)
     {
         var league = await workspace.LoadById<League, int>(command.LeagueId, ct);
+        var newlyFollowed = command.Followed && !league.IsFollowed;
+
         league.Follow(command.Followed);
 
         if (command.Followed && league.SupportsTeams && league.TeamsRefreshedAtUtc is null)
             await mediator.Send(new RefreshLeagueTeamsCommand(league.Id), ct);
 
-        // The league catalog records no artwork, so this is the first moment anything has wanted it.
+        if (newlyFollowed)
+        {
+            foreach (var team in await workspace.Load(new TeamsByLeagueSpec(league.Id), ct))
+                team.Follow(true);
+        }
+
         if (command.Followed)
             await mediator.Send(new RefreshLeagueLogosCommand(league.Id), ct);
 

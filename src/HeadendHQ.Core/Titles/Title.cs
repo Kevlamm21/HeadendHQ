@@ -55,6 +55,8 @@ public class Title : Entity<Guid>
         PosterImageId is not null || BackgroundImageId is not null
         || ThumbnailImageId is not null || ClearLogoImageId is not null;
 
+    public TitleProductionProfile Production => TitleProductionProfile.For(Type);
+
     public DateTimeOffset CreatedAt { get; private set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; private set; }
     public bool IsActive { get; private set; } = true;
@@ -116,6 +118,7 @@ public class Title : Entity<Guid>
     }
 
     public void MarkArtworkCreated() => ArtworkCreated = true;
+
     public void SetRenderedArtwork(int? poster, int? background, int? thumbnail, int? clearLogo)
     {
         PosterImageId = poster;
@@ -124,6 +127,7 @@ public class Title : Entity<Guid>
         ClearLogoImageId = clearLogo;
         ArtworkCreated = true;
         UpdatedAt = DateTimeOffset.UtcNow;
+        RecordEvent(new TitleMetadataUpdated(Id));
     }
 
     public void MarkVideoCreated(bool created) => IsVideoCreated = created;

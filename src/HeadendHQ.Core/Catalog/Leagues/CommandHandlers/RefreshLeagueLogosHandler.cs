@@ -8,11 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 
-/// <summary>
-/// Downloads a league's own marks. Split out because the league catalog records no artwork — 356
-/// leagues would mean 356 downloads for the handful anyone follows — so this is what a follow, and
-/// later a seed, calls to fill one league in.
-/// </summary>
 public record RefreshLeagueLogosCommand(int LeagueId, bool RefreshExisting = false) : ICommand<int>;
 
 public class RefreshLeagueLogosHandler(
@@ -35,8 +30,6 @@ public class RefreshLeagueLogosHandler(
         IReadOnlyList<LeagueDescriptor> descriptors;
         try
         {
-            // One request returns every league in the sport; the source has no cheaper way to ask
-            // about a single one, and this only runs when a league gains a follower.
             descriptors = await source.GetLeaguesAsync(sport.Slug, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -2,10 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace HeadendHQ.WebScraping.Espn.Models;
 
-/// <summary>
-/// A core-API collection. Items are bare <c>$ref</c> links; where the slug is embedded in the URL
-/// we read it straight from there rather than paying a request per item.
-/// </summary>
 internal record EspnRefList(
     [property: JsonPropertyName("count")] int Count,
     [property: JsonPropertyName("pageCount")] int PageCount,
@@ -37,7 +33,6 @@ internal record EspnLeagueDetail(
     [property: JsonPropertyName("isTournament")] bool? IsTournament,
     [property: JsonPropertyName("logos")] List<EspnLogo>? Logos);
 
-/// <summary>The site API buries the team list three levels deep and wraps each entry again.</summary>
 internal record EspnTeamsResponse([property: JsonPropertyName("sports")] List<EspnTeamsSport>? Sports)
 {
     public IEnumerable<EspnTeamDetail> Teams =>
@@ -69,10 +64,6 @@ internal record EspnTeamDetail(
     [property: JsonPropertyName("isActive")] bool? IsActive,
     [property: JsonPropertyName("logos")] List<EspnLogo>? Logos);
 
-/// <summary>
-/// A network or streaming service. Reachable only by id — there is no endpoint that lists these
-/// usefully — so we resolve one the first time a schedule mentions it.
-/// </summary>
 internal record EspnMediaDetail(
     [property: JsonPropertyName("id")] string? Id,
     [property: JsonPropertyName("slug")] string? Slug,

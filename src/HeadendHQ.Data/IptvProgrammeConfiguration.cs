@@ -11,7 +11,6 @@ internal class IptvProgrammeConfiguration : IEntityTypeConfiguration<IptvProgram
         builder.ToTable("IptvProgrammes");
         builder.HasKey(e => e.Id);
 
-        // The only read is "what is on this channel around then", so the pair is the index.
         builder.HasIndex(e => new { e.GuideNumber, e.StartUtc });
     }
 }

@@ -8,10 +8,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 
-/// <summary>
-/// Debugging aid: removes a league's team logos and any image blob that no longer has a reference
-/// anywhere. The teams themselves are kept, so the next refresh re-downloads their marks.
-/// </summary>
 public record DeleteAllLeagueTeamImagesCommand(int LeagueId) : ICommand<int>;
 
 public class DeleteAllLeagueTeamImagesHandler(IWorkspace workspace)
@@ -25,8 +21,6 @@ public class DeleteAllLeagueTeamImagesHandler(IWorkspace workspace)
         foreach (var team in teams)
             team.ClearLogos();
 
-        // Built after the rows are gone, so a blob kept alive only by the logos just removed is
-        // correctly seen as unreferenced.
         var referenced = new HashSet<int>();
 
         foreach (var team in await workspace.LoadAll<Team>(ct))
@@ -46,7 +40,6 @@ public class DeleteAllLeagueTeamImagesHandler(IWorkspace workspace)
             foreach (var logo in broadcaster.Logos)
                 referenced.Add(logo.ImageId);
 
-        // Titles hold no catalog logo ids any more, but their cast headshots must still be protected.
         foreach (var title in await workspace.LoadAll<Title>(ct))
             foreach (var castMember in title.Cast)
                 AddImageId(castMember.HeadshotImageId, referenced);

@@ -2,12 +2,6 @@ using System.Text.Json;
 
 namespace HeadendHQ.WebScraping.Espn.Models;
 
-/// <summary>
-/// Parsing for the team roster endpoint. Its "athletes" field is polymorphic: a flat
-/// array of athletes for NBA, and an array of { position, items[] } groups for
-/// NFL/MLB/NHL/college football. That cannot be expressed with plain attribute-mapped
-/// records, because "position" is a string on a group but an object on an athlete.
-/// </summary>
 internal static class EspnRoster
 {
     private static readonly HashSet<string> InactiveGroups = new(StringComparer.OrdinalIgnoreCase)
@@ -61,7 +55,6 @@ internal static class EspnRoster
         }
         catch (JsonException)
         {
-            // An entry we cannot map is not worth failing the whole roster over.
         }
     }
 }

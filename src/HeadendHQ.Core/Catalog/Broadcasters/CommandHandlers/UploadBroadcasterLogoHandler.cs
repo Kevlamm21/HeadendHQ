@@ -16,8 +16,6 @@ public class UploadBroadcasterLogoHandler(IWorkspace workspace, IMediator mediat
 
         var imageId = await mediator.Send(new UploadImageCommand(command.Bytes, ImagePurpose.BroadcasterLogo), ct);
 
-        // Under the label the preference chain reaches for first, so an upload actually displaces
-        // whatever ESPN supplied rather than sitting behind it.
         broadcaster.UpsertLogo(LogoRels.Dark, imageId, ImageOrigin.Manual);
 
         return broadcaster;

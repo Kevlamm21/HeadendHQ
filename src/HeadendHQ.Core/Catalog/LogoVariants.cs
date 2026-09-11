@@ -1,9 +1,5 @@
 namespace HeadendHQ.Core.Catalog;
 
-/// <summary>
-/// Which edition of a league's identity an image belongs to. Deliberately strings, not an enum:
-/// leagues invent competitions (the NBA Cup arrived in 2023) and a new one must not need a release.
-/// </summary>
 public static class LogoVariants
 {
     public const string Default = "Default";
@@ -13,10 +9,6 @@ public static class LogoVariants
     public const string Finals = "Finals";
 }
 
-/// <summary>
-/// ESPN's <c>rel</c> tokens, normalized to a single sorted key. An open set — ESPN ships sixteen
-/// variants per team today and adds more, so these are the ones we name, not the ones we accept.
-/// </summary>
 public static class LogoRels
 {
     public const string Default = "default";
@@ -29,11 +21,6 @@ public static class LogoRels
     public const string White = "primary_logo_white";
     public const string Black = "primary_logo_black";
 
-    /// <summary>
-    /// Collapses a <c>rel</c> array to a stable key. ESPN always includes "full" alongside the
-    /// meaningful token, so it is dropped; what is left is sorted so ["full","scoreboard","dark"]
-    /// and ["dark","scoreboard"] agree.
-    /// </summary>
     public static string Normalize(IEnumerable<string> rel)
     {
         var tokens = rel

@@ -18,9 +18,6 @@ public class UpdateTeamHandler(IWorkspace workspace, IMediator mediator)
         if (command.PreferredLogoRel is { Length: > 0 } rel) team.PreferLogo(rel);
         team.OverrideColors(command.PrimaryColorHex, command.AlternateColorHex);
 
-        // A followed team's artwork is needed soon; fetch it now rather than mid-scrape. The command
-        // is a no-op when the chosen variant is already held, so this costs nothing on a plain
-        // colour override or a re-follow.
         if (team.IsFollowed)
             await mediator.Send(new RefreshTeamLogosCommand(team.Id), ct);
 

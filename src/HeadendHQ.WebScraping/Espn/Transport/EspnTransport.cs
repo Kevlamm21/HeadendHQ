@@ -5,16 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
 
-/// <summary>
-/// The single way anything in this assembly talks to ESPN.
-/// <para>
-/// The header set is load-bearing, not decoration. <c>site.api.espn.com</c> is fronted by Akamai bot
-/// management which rejects a request that claims a browser User-Agent but arrives without the
-/// headers a browser would send; supplying the full, self-consistent set is what turns a 403 into a
-/// 200. That is also why every request — images included — goes through here rather than a bare
-/// <see cref="HttpClient"/>.
-/// </para>
-/// </summary>
 internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogger<EspnTransport> logger)
 {
     private const int MaxAttempts = 3;
@@ -29,10 +19,6 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
         return await response.Content.ReadAsStringAsync(ct);
     }
 
-    /// <summary>
-    /// Issues a GET, retrying transient failures and falling back to the mirror host when the
-    /// primary refuses us outright. Returns <c>null</c> only for a 304.
-    /// </summary>
     public async Task<HttpResponseMessage?> SendAsync(
         string url, string? etag, DateTimeOffset? lastModified, CancellationToken ct)
     {
@@ -62,8 +48,6 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
 
             response.Dispose();
 
-            // A 403 is Akamai, not a missing resource: the mirror host serves the same tree and is
-            // worth one try before giving up on this URL.
             if (status == HttpStatusCode.Forbidden && EspnEndpoints.FallbackHost(target) is { } mirror)
             {
                 logger.LogWarning("ESPN refused {Url}; retrying on the mirror host.", target);
@@ -71,7 +55,6 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
                 continue;
             }
 
-            // Nothing about a 404 improves by asking again.
             if (status == HttpStatusCode.NotFound || attempt >= MaxAttempts)
                 throw new HttpRequestException($"ESPN returned {(int)status} for {target}.", null, status);
 
@@ -98,11 +81,6 @@ internal sealed class EspnTransport(HttpClient http, EspnRequestGate gate, ILogg
         return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
-    /// <summary>
-    /// The header set proven to satisfy Akamai, applied to every single request so no call site can
-    /// forget it — the previous implementation omitted these on image downloads, which is exactly the
-    /// kind of inconsistency bot management looks for.
-    /// </summary>
     private static void ApplyBrowserHeaders(HttpRequestMessage request, string userAgent)
     {
         var headers = request.Headers;

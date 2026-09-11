@@ -7,10 +7,11 @@ public class Team : IEntity<int>, IExternalRef
 {
     private Team() { }
 
-    public Team(int leagueId, string displayName)
+    public Team(int leagueId, string displayName, bool isFollowed = false)
     {
         LeagueId = leagueId;
         DisplayName = displayName;
+        IsFollowed = isFollowed;
     }
 
     public int Id { get; init; }
@@ -23,21 +24,14 @@ public class Team : IEntity<int>, IExternalRef
     public string? Location { get; private set; }
     public string? Nickname { get; private set; }
 
-    /// <summary>Hex without a leading '#', as ESPN supplies it.</summary>
     public string? PrimaryColorHex { get; private set; }
     public string? AlternateColorHex { get; private set; }
 
     public bool IsActive { get; private set; } = true;
     public bool IsFollowed { get; private set; }
 
-    /// <summary>Which logo variant artwork should use for this team. See <see cref="LogoRels"/>.</summary>
     public string PreferredLogoRel { get; private set; } = LogoRels.OnSecondaryColor;
 
-    /// <summary>
-    /// When this team's logo variants were confirmed against a trustworthy source. A source's bulk
-    /// listing may be wrong about them — ESPN's is, for the NFL — so the per-team confirmation is
-    /// tracked separately. Logo addresses are stable, so this happens once per team, ever.
-    /// </summary>
     public DateTimeOffset? LogosVerifiedAtUtc { get; private set; }
 
     public string? SourceKey { get; private set; }
@@ -80,12 +74,6 @@ public class Team : IEntity<int>, IExternalRef
         ExternalId = externalId;
     }
 
-    /// <summary>
-    /// The stored mark artwork should use. The plain <see cref="LogoRels.Default"/> comes before an
-    /// arbitrary pick because it is the one address that is always right — the on-colour variants may
-    /// not have been verified yet. <see cref="LogoSelection.ForTeam"/> applies the same order to a
-    /// source's candidates before anything is downloaded.
-    /// </summary>
     public TeamLogo? PreferredLogo() =>
         Logos.FirstOrDefault(l => l.Label == PreferredLogoRel)
         ?? Logos.FirstOrDefault(l => l.Label == LogoRels.OnSecondaryColor)
@@ -94,7 +82,6 @@ public class Team : IEntity<int>, IExternalRef
         ?? Logos.FirstOrDefault(l => l.Label == LogoRels.Scoreboard)
         ?? Logos.FirstOrDefault();
 
-    /// <summary>Drops every stored mark, so the next refresh downloads them again.</summary>
     public void ClearLogos() => Logos.Clear();
 
     public TeamLogo UpsertLogo(string? label, int imageId, ImageOrigin origin = ImageOrigin.Fetched) =>

@@ -6,12 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Titles.CommandHandlers;
 
-/// <summary>
-/// Composes a produced title's poster/background/thumbnail and stores them in the media library.
-/// The one place that knows how a given <see cref="TitleType"/> turns into artwork — a sporting
-/// event becomes a team-vs-team card built from its league/team/broadcaster marks. A title with no
-/// source, or a type with no composer arm, only ever gets hand-uploaded art.
-/// </summary>
 public record ComposeTitleArtworkCommand(Guid TitleId) : ICommand<Unit>;
 
 public class ComposeTitleArtworkHandler(
@@ -27,7 +21,7 @@ public class ComposeTitleArtworkHandler(
         if (title.ArtworkCreated)
             return Unit.Value;
 
-        if (title.Type != TitleType.SportingEvent || title.SourceId is not { } sourceId)
+        if (!title.Production.ComposesArtwork || title.SourceId is not { } sourceId)
             return Unit.Value;
 
         try
@@ -49,7 +43,6 @@ public class ComposeTitleArtworkHandler(
         return Unit.Value;
     }
 
-    /// <summary>The composed clearlogo is the league wordmark — shared catalog data, referenced not copied.</summary>
     private async Task<int?> ResolveClearLogoAsync(Guid eventId, CancellationToken ct)
     {
         var ev = await workspace.LoadSingleOrDefault(new EntityByIdSpecification<SportingEvent, Guid>(eventId), ct);

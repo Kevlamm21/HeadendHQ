@@ -33,7 +33,6 @@ internal record EspnBoxscoreAthleteEntry(
     [property: JsonPropertyName("athlete")] EspnAthlete? Athlete
 );
 
-// Starting lineups / probable pitchers. Present for scheduled games in some leagues (MLB today).
 internal record EspnRosterTeam(
     [property: JsonPropertyName("team")] EspnSummaryTeamRef? Team,
     [property: JsonPropertyName("homeAway")] string? HomeAway,
@@ -45,8 +44,6 @@ internal record EspnRosterEntry(
     [property: JsonPropertyName("starter")] bool? Starter
 );
 
-// Season stat leaders. Populated once teams have played games this season, so it is
-// empty during preseason and week 1.
 internal record EspnLeadersTeam(
     [property: JsonPropertyName("team")] EspnSummaryTeamRef? Team,
     [property: JsonPropertyName("leaders")] List<EspnLeaderCategory>? Leaders
@@ -170,7 +167,6 @@ internal record EspnSummaryCompetitor(
     [property: JsonPropertyName("probables")] List<EspnProbable>? Probables
 );
 
-// The probable starting pitchers for this specific game (MLB).
 internal record EspnProbable(
     [property: JsonPropertyName("athlete")] EspnAthlete? Athlete
 );

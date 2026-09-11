@@ -4,10 +4,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Media.CommandHandlers;
 
-/// <summary>
-/// Stores hand-uploaded bytes and returns the id. The caller attaches it — a manual image outranks
-/// anything fetched, and it is the owning collection that records which is which.
-/// </summary>
 public record UploadImageCommand(byte[] Bytes, ImagePurpose Purpose) : ICommand<int>;
 
 public class UploadImageHandler(IWorkspace workspace, IUnitOfWork unitOfWork, IImageNormalizer normalizer)
@@ -38,10 +34,6 @@ public class UploadImageHandler(IWorkspace workspace, IUnitOfWork unitOfWork, II
         }
     }
 
-    /// <summary>
-    /// Poster/background/thumbnail normalize to JPEG; everything else is a transparent PNG. The row
-    /// records this so <c>/media/images/{id}</c> serves the right type.
-    /// </summary>
     private static string ContentTypeFor(ImagePurpose purpose) => purpose switch
     {
         ImagePurpose.Poster or ImagePurpose.Background or ImagePurpose.Thumbnail => "image/jpeg",

@@ -4,7 +4,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 
-/// <summary>Debugging aid: removes a league's teams so they can be re-pulled with fresh logos.</summary>
 public record DeleteAllLeagueTeamsCommand(int LeagueId) : ICommand<int>;
 
 public class DeleteAllLeagueTeamsHandler(IWorkspace workspace)

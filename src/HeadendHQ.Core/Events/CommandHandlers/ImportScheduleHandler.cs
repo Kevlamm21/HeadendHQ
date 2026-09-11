@@ -19,24 +19,21 @@ public record ImportScheduleCommand : ICommand<ImportScheduleResult>;
 
 public record ImportScheduleResult(int EventsUpserted, int EventsRemoved, List<string> Errors);
 
-/// <summary>
-/// Turns whatever the schedule sources report into <see cref="SportingEvent"/> rows.
-/// <para>
-/// Source-agnostic by construction: it only ever sees the neutral descriptors, so adding a second
-/// source means implementing <see cref="IScheduleSource"/> and nothing else. Detail collection is
-/// deliberately not done here — the scrape stays short, and each event's extra lookup is queued so a
-/// single failing game cannot abandon the run.
-/// </para>
-/// </summary>
 public class ImportScheduleHandler(
     IEnumerable<IScheduleSource> sources,
     IWorkspace workspace,
     IUnitOfWork unitOfWork,
     IMediator mediator,
-    IEventDetailQueue detailQueue,
     ILogger<ImportScheduleHandler> logger)
     : ICommandHandler<ImportScheduleCommand, ImportScheduleResult>
 {
+    private record KeptEvent(
+        ScheduledEventDescriptor Descriptor,
+        League League,
+        Broadcaster Broadcaster,
+        CompetitorDescriptor Home,
+        CompetitorDescriptor Away);
+
     public async ValueTask<ImportScheduleResult> Handle(ImportScheduleCommand command, CancellationToken ct)
     {
         var settings = await mediator.Send(new GetScheduleScrapingSettingsQuery(), ct);
@@ -45,7 +42,7 @@ public class ImportScheduleHandler(
         var to = from.AddDays(settings.ScrapeWindowDays);
 
         var followedLeagues = (await workspace.Load(new FollowedLeaguesSpec(), ct)).ToList();
-        var followedTeamIds = (await workspace.Load(new FollowedTeamsSpec(), ct)).Select(t => t.Id).ToHashSet();
+        var followedTeams = (await workspace.Load(new FollowedTeamsSpec(), ct)).ToList();
         var subscribed = (await workspace.Load(new SubscribedBroadcastersSpec(), ct)).ToList();
 
         if (followedLeagues.Count == 0)
@@ -57,9 +54,6 @@ public class ImportScheduleHandler(
         var query = new ScheduleQuery(
             from, to,
             [.. followedLeagues.Select(l => l.Slug)],
-            // Every product slug a subscribed broadcaster answers to. A hint only — the source must
-            // still return everything airing, so an unknown network becomes a row you can subscribe
-            // to or map. The subscription filter is applied below, after resolution.
             [.. subscribed.SelectMany(b => new[] { b.Slug }.Concat(b.Aliases)).Distinct()]);
 
         var errors = new List<string>();
@@ -70,7 +64,8 @@ public class ImportScheduleHandler(
         {
             try
             {
-                var (added, deleted) = await ImportFromAsync(source, query, followedLeagues, followedTeamIds, now, ct);
+                var filter = new EventFollowFilter(followedTeams, source.SourceKey);
+                var (added, deleted) = await ImportFromAsync(source, query, followedLeagues, filter, now, errors, ct);
                 upserted += added;
                 removed += deleted;
             }
@@ -88,20 +83,67 @@ public class ImportScheduleHandler(
         IScheduleSource source,
         ScheduleQuery query,
         List<League> followedLeagues,
-        HashSet<int> followedTeamIds,
+        EventFollowFilter filter,
         DateTime now,
+        List<string> errors,
         CancellationToken ct)
     {
         var descriptors = await source.GetEventsAsync(query, ct);
-        var leaguesBySlug = followedLeagues.ToDictionary(l => l.Slug, StringComparer.OrdinalIgnoreCase);
+        var kept = await SelectAsync(descriptors, followedLeagues, filter, ct);
 
-        var seenExternalIds = new HashSet<string>();
-        var detailEventIds = new List<Guid>();
+        var seenExternalIds = kept.Select(k => k.Descriptor.ExternalId).ToHashSet();
+
         var upserted = 0;
+
+        var ordered = kept.OrderBy(k => k.Descriptor.StartUtc).ToList();
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var game = ordered[i];
+
+            try
+            {
+                await IngestAsync(source.SourceKey, game, ct);
+                upserted++;
+            }
+            catch (CatalogSourceThrottledException ex)
+            {
+                logger.LogWarning(ex, "{Source}: throttled; {Remaining} event(s) left for the next run.",
+                    source.SourceKey, ordered.Count - i);
+                errors.Add($"{source.SourceKey}: {ex.Message}");
+                break;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Failed to import {Name} ({Id}) from {Source}.",
+                    game.Descriptor.Name, game.Descriptor.ExternalId, source.SourceKey);
+                errors.Add($"{source.SourceKey} {game.Descriptor.ExternalId}: {ex.Message}");
+            }
+        }
+
+        var removed = await ReconcileAsync(source.SourceKey, seenExternalIds, now, ct);
+        logger.LogInformation(
+            "{Source}: {Kept} followed event(s) of {Listed} listed, {Upserted} upserted, {Removed} removed.",
+            source.SourceKey, kept.Count, descriptors.Count, upserted, removed);
+
+        return (upserted, removed);
+    }
+
+    private async Task<List<KeptEvent>> SelectAsync(
+        IReadOnlyList<ScheduledEventDescriptor> descriptors,
+        List<League> followedLeagues,
+        EventFollowFilter filter,
+        CancellationToken ct)
+    {
+        var leaguesBySlug = followedLeagues.ToDictionary(l => l.Slug, StringComparer.OrdinalIgnoreCase);
+        var kept = new List<KeptEvent>();
 
         foreach (var descriptor in descriptors)
         {
             if (!leaguesBySlug.TryGetValue(descriptor.LeagueSlug, out var league))
+                continue;
+
+            if (!filter.IsFollowed(league, descriptor))
                 continue;
 
             var broadcaster = await ResolveBroadcasterAsync(descriptor, ct);
@@ -113,75 +155,51 @@ public class ImportScheduleHandler(
             if (home is null || away is null)
                 continue;
 
-            var homeTeam = await ResolveTeamAsync(league, home, source.SourceKey, ct);
-            var awayTeam = await ResolveTeamAsync(league, away, source.SourceKey, ct);
-
-            // A followed league takes everything; otherwise the game has to involve a followed team.
-            if (!league.IsFollowed &&
-                !followedTeamIds.Contains(homeTeam?.Id ?? -1) &&
-                !followedTeamIds.Contains(awayTeam?.Id ?? -1))
-                continue;
-
-            seenExternalIds.Add(descriptor.ExternalId);
-
-            var sportingEvent = await UpsertAsync(
-                source.SourceKey, descriptor, league, homeTeam, home, awayTeam, away, broadcaster, ct);
-
-            upserted++;
-
-            if (sportingEvent.NeedsDetails)
-                detailEventIds.Add(sportingEvent.Id);
+            kept.Add(new KeptEvent(descriptor, league, broadcaster, home, away));
         }
+
+        return kept;
+    }
+
+    private async Task IngestAsync(string sourceKey, KeptEvent game, CancellationToken ct)
+    {
+        var (descriptor, league, broadcaster, home, away) = game;
+
+        var homeTeam = await ResolveTeamAsync(league, home, sourceKey, ct);
+        var awayTeam = await ResolveTeamAsync(league, away, sourceKey, ct);
+
+        var existing = await workspace.LoadSingleOrDefault(
+            new SportingEventBySourceIdSpec(sourceKey, descriptor.ExternalId), ct);
+
+        EventDetail? detail = null;
+        if (existing is null || existing.NeedsDetails)
+            detail = await mediator.Send(new FetchEventDetailQuery(
+                league.Id, descriptor.ExternalId, descriptor.StartUtc,
+                homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName), ct);
+
+        var sportingEvent = existing
+            ?? new SportingEvent(sourceKey, descriptor.ExternalId, league.Id, descriptor.StartUtc);
+
+        sportingEvent.SetSchedule(descriptor.StartUtc, null);
+        sportingEvent.SetParticipants(
+            homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName, broadcaster.Id);
+        sportingEvent.SetSeason(descriptor.SeasonYear, descriptor.SeasonType);
+        sportingEvent.SetWatchUrl(descriptor.WatchUrl);
+
+        if (detail is not null)
+            sportingEvent.ApplyDetail(detail);
+        else
+            sportingEvent.RefreshVariant();
+
+        if (existing is null)
+            workspace.Add(sportingEvent);
 
         await unitOfWork.SaveChanges(ct);
 
-        foreach (var eventId in detailEventIds)
-            detailQueue.Enqueue(eventId);
-
-        var removed = await ReconcileAsync(source.SourceKey, seenExternalIds, now, ct);
-        logger.LogInformation(
-            "{Source}: {Upserted} event(s) upserted, {Removed} removed.", source.SourceKey, upserted, removed);
-
-        return (upserted, removed);
+        if (sportingEvent.NeedsTitle && LocalDay.IsToday(sportingEvent.StartUtc))
+            await mediator.Send(new ProduceTitleForEventCommand(sportingEvent.Id), ct);
     }
 
-    private async Task<SportingEvent> UpsertAsync(
-        string sourceKey,
-        ScheduledEventDescriptor descriptor,
-        League league,
-        Team? homeTeam,
-        CompetitorDescriptor home,
-        Team? awayTeam,
-        CompetitorDescriptor away,
-        Broadcaster broadcaster,
-        CancellationToken ct)
-    {
-        var existing = (await workspace.Load(
-            new SportingEventBySourceIdSpec(sourceKey, descriptor.ExternalId), ct)).FirstOrDefault();
-
-        if (existing is null)
-        {
-            existing = new SportingEvent(sourceKey, descriptor.ExternalId, league.Id, descriptor.StartUtc);
-            workspace.Add(existing);
-        }
-
-        existing.SetSchedule(descriptor.StartUtc, null);
-        existing.SetParticipants(
-            homeTeam?.Id, home.DisplayName, awayTeam?.Id, away.DisplayName, broadcaster.Id);
-        existing.SetSeason(descriptor.SeasonYear, descriptor.SeasonType);
-        existing.SetWatchUrl(descriptor.WatchUrl);
-
-        // Season type alone already distinguishes a playoff game; a competition note may refine it
-        // later, once detail collection has run.
-        existing.SetVariant(LeagueVariantResolver.Resolve(existing.Note, descriptor.SeasonType));
-
-        return existing;
-    }
-
-    /// <summary>
-    /// Finds the broadcaster behind a slug, creating it unsubscribed if it is new. Growing the list
-    /// from what actually airs beats guessing it in advance, and costs one lookup per new service.
-    /// </summary>
     private async Task<Broadcaster?> ResolveBroadcasterAsync(
         ScheduledEventDescriptor descriptor, CancellationToken ct)
     {
@@ -189,14 +207,9 @@ public class ImportScheduleHandler(
 
         foreach (var candidate in descriptor.Broadcasts.OrderBy(b => b.Priority))
         {
-            // Sent whether or not we already hold the row. A seeded broadcaster has no external id
-            // until a schedule first names it, and without one there is no way to look up its logo —
-            // which is why espn and prime-video sat there logo-less however long they existed.
-            // Resolving is idempotent and costs one upstream call per broadcaster, ever.
             var broadcaster = await mediator.Send(new ResolveBroadcasterCommand(
                 candidate.ExternalId, candidate.Slug, candidate.Name, candidate.Kind), ct);
 
-            // Prefer a service we actually subscribe to over merely the highest-priority airing.
             if (broadcaster.IsSubscribed)
                 return broadcaster;
 
@@ -206,20 +219,20 @@ public class ImportScheduleHandler(
         return firstKnown;
     }
 
-    private async Task<Team?> ResolveTeamAsync(
+    private async Task<Team> ResolveTeamAsync(
         League league, CompetitorDescriptor competitor, string sourceKey, CancellationToken ct)
     {
         if (competitor.TeamExternalId is { Length: > 0 } externalId)
         {
-            var byExternalId = (await workspace.Load(new TeamByExternalIdSpec(league.Id, sourceKey, externalId), ct))
-                .FirstOrDefault();
+            var byExternalId = (await workspace.Load(
+                new TeamByExternalIdSpec(league.Id, sourceKey, externalId), ct)).FirstOrDefault();
 
             if (byExternalId is not null)
                 return byExternalId;
         }
 
-        var byName = (await workspace.Load(new TeamByLeagueAndNameSpec(league.Id, competitor.DisplayName), ct))
-            .FirstOrDefault();
+        var byName = (await workspace.Load(
+            new TeamByLeagueAndNameSpec(league.Id, competitor.DisplayName), ct)).FirstOrDefault();
 
         if (byName is not null)
         {
@@ -229,32 +242,27 @@ public class ImportScheduleHandler(
             return byName;
         }
 
-        // An unknown team should never block a scrape — a mid-season expansion or a college side we
-        // have not pulled yet still gets an event. Its mark is left to the next league refresh: the
-        // schedule's competitor logos come from a bulk listing, which is exactly the source that
-        // cannot be trusted to hand back the right club's image.
-        var team = new Team(league.Id, competitor.DisplayName);
+        var team = new Team(league.Id, competitor.DisplayName, isFollowed: league.IsFollowed);
         if (competitor.TeamExternalId is { Length: > 0 } newId)
             team.TrackSource(sourceKey, newId);
 
         workspace.Add(team);
+
+        // The event references the team by id, and an int key isn't assigned until insert.
+        await unitOfWork.SaveChanges(ct);
+
         logger.LogInformation("Created previously unseen team {Team} in {League}.",
             competitor.DisplayName, league.Slug);
 
         return team;
     }
 
-    /// <summary>
-    /// Removes events the source has stopped listing — a cancelled game, or a playoff fixture that
-    /// turned out not to be needed. Guarded against an empty response, which would otherwise read as
-    /// "everything was cancelled".
-    /// </summary>
     private async Task<int> ReconcileAsync(
         string sourceKey, HashSet<string> seenExternalIds, DateTime now, CancellationToken ct)
     {
         if (seenExternalIds.Count == 0)
         {
-            logger.LogWarning("{Source} returned no events; skipping reconciliation.", sourceKey);
+            logger.LogWarning("{Source} returned no followed events; skipping reconciliation.", sourceKey);
             return 0;
         }
 

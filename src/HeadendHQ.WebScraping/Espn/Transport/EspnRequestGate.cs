@@ -4,21 +4,8 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Transport;
 
-/// <summary>
-/// Raised when a run exhausts its request budget or ESPN asks us to back off. Both are terminal:
-/// the respectful reading of a 429 is to stop for tonight, not to try harder.
-/// </summary>
 public class EspnThrottledException(string message) : CatalogSourceThrottledException(message);
 
-/// <summary>
-/// Paces every outbound ESPN request so a scrape reads like a person browsing rather than a crawler:
-/// at most a couple in flight, never closer together than a few hundred milliseconds, jittered so the
-/// cadence is not perfectly regular, capped per minute, and capped in total.
-/// <para>
-/// Registered scoped, so the request budget covers one unit of work — a nightly scrape, a discovery
-/// run, one API call — and a runaway loop is bounded rather than unbounded.
-/// </para>
-/// </summary>
 internal sealed class EspnRequestGate(ILogger<EspnRequestGate> logger) : IDisposable
 {
     private readonly SemaphoreSlim _concurrency = new(Math.Max(1, SourceSettings.MaxConcurrency));
@@ -30,7 +17,6 @@ internal sealed class EspnRequestGate(ILogger<EspnRequestGate> logger) : IDispos
 
     public int RequestsUsed => Volatile.Read(ref _used);
 
-    /// <summary>Waits until it is polite to send, then runs <paramref name="send"/>.</summary>
     public async Task<T> RunAsync<T>(Func<CancellationToken, Task<T>> send, CancellationToken ct)
     {
         if (Interlocked.Increment(ref _used) > SourceSettings.PerRunRequestBudget)
@@ -49,10 +35,6 @@ internal sealed class EspnRequestGate(ILogger<EspnRequestGate> logger) : IDispos
         }
     }
 
-    /// <summary>
-    /// Folds the minimum spacing and the per-minute bucket into a single sleep, reserved under a lock
-    /// so concurrent callers queue behind one another instead of all waking at the same instant.
-    /// </summary>
     private async Task WaitForSlotAsync(CancellationToken ct)
     {
         TimeSpan delay;

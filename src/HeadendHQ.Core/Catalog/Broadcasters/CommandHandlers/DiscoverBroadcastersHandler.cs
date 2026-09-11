@@ -6,17 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-/// <summary>
-/// Crawls ESPN's media index for the full broadcaster catalogue — every network, with both logo
-/// variants — so the settings list is complete before a game has aired on each one.
-/// <para>
-/// The index is two requests; each record is one more, ~1311 in total, which fits one run's request
-/// budget. An interrupted crawl resumes by skipping ids already on a row, so re-running it after a
-/// truncated pass picks up where it stopped rather than stranding every network past the cut-off.
-/// It runs automatically once, when the database is first created; after that it is manual
-/// (<c>POST /catalog/broadcasters/discover</c>).
-/// </para>
-/// </summary>
 public record DiscoverBroadcastersCommand(int? Max = null) : ICommand<DiscoverBroadcastersResult>;
 
 public record DiscoverBroadcastersResult(int Examined, int Created, int LogosAdded, bool SweepComplete);
@@ -81,8 +70,6 @@ public class DiscoverBroadcastersHandler(
 
                 if (existing is not null && !canonical)
                 {
-                    // Alias sighting: artwork only. It must not rename the row or claim its id, or
-                    // the canonical record would never be read.
                     logosAdded += await RefreshBroadcasterLogosHandler.StoreLogoAsync(
                         existing, detail.Logos, mediator, refreshExisting: false, ct);
                 }
@@ -93,9 +80,6 @@ public class DiscoverBroadcastersHandler(
                     broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, BroadcasterKind.Unknown);
                     broadcaster.TrackSource(source.SourceKey, detail.ExternalId);
 
-                    // The crawl walks ~1300 networks, most of them local affiliates with nothing on
-                    // file. Artwork is downloaded only where it can actually be used, so the crawl
-                    // stays a catalogue pass rather than a bulk image import.
                     if (broadcaster.IsSubscribed)
                         logosAdded += await RefreshBroadcasterLogosHandler.StoreLogoAsync(
                             broadcaster, detail.Logos, mediator, refreshExisting: false, ct);
@@ -119,7 +103,6 @@ public class DiscoverBroadcastersHandler(
                     sinceCheckpoint = 0;
                 }
             }
-
         }
         catch (CatalogSourceThrottledException ex)
         {

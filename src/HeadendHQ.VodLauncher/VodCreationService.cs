@@ -28,19 +28,17 @@ public class VodCreationService(
             return;
         }
 
-        // TEMP: EventUrl gate disabled until deep link aggregation is working — re-enable then.
-        // if (title.EventUrl is null)
-        // {
-        //     logger.LogInformation("Title {Id} ({Name}) has no EventUrl, skipping VOD production.", title.Id, title.Name);
-        //     return;
-        // }
-
-        var shouldCreateNow = title.StartUtc is null || title.StartUtc.Value.ToLocalTime().Date <= DateTime.Now.Date;
+        var shouldCreateNow = title.StartUtc is not { } startUtc || LocalDay.IsTodayOrEarlier(startUtc);
         if (!shouldCreateNow)
         {
             logger.LogInformation("Title {Id} ({Name}) is a future event, skipping production.", title.Id, title.Name);
             return;
         }
+
+        var production = title.Production;
+
+        if (production.ComposesArtwork && !title.ArtworkCreated)
+            await mediator.Send(new ComposeTitleArtworkCommand(title.Id), ct);
 
         if (!title.IsVideoCreated)
         {
@@ -61,8 +59,8 @@ public class VodCreationService(
             title.MarkVideoCreated(true);
         }
 
-        if (!title.ArtworkCreated)
-            await mediator.Send(new ComposeTitleArtworkCommand(title.Id), ct);
+        if (!production.WritesNfo)
+            return;
 
         try
         {

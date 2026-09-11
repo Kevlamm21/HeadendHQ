@@ -14,11 +14,6 @@ public record UploadTitleImagesCommand(
     Stream? Thumbnail,
     Stream? Wordmark) : ICommand;
 
-/// <summary>
-/// Stores hand-uploaded title artwork in the media store and points the title at the rows, the same
-/// way headshots and logos are handled. Replacing a slot that already held an image drops the old
-/// row so nothing is left orphaned.
-/// </summary>
 public class UploadTitleImagesHandler(
     IWorkspace workspace,
     IMediator mediator,
@@ -64,7 +59,6 @@ public class UploadTitleImagesHandler(
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, ct);
 
-        // UploadImageCommand normalizes by purpose, so raw upload bytes go straight in.
         return await mediator.Send(new UploadImageCommand(ms.ToArray(), purpose), ct);
     }
 

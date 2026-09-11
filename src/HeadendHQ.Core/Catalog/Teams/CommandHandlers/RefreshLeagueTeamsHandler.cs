@@ -11,15 +11,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 
-/// <summary>
-/// Pulls a league's teams — one request returns every team with colours and all logo variants.
-/// Run when a league is followed, and again on the nightly refresh for followed leagues.
-/// </summary>
-/// <param name="RefreshLogos">
-/// Re-check the marks of teams that already have one. Off by default: a logo row means bytes we
-/// already hold, so an ordinary refresh only downloads for teams that have nothing, and a large
-/// league costs its downloads once rather than every night.
-/// </param>
 public record RefreshLeagueTeamsCommand(int LeagueId, bool RefreshLogos = false) : ICommand<int>;
 
 public class RefreshLeagueTeamsHandler(
@@ -49,14 +40,10 @@ public class RefreshLeagueTeamsHandler(
 
         foreach (var descriptor in descriptors)
         {
-            // The name fallback is what carries the catalog across a source swap: rows still
-            // stamped with the old source answer to no id the new one knows, and inserting a
-            // second team with the same name would violate (LeagueId, DisplayName). TrackSource
-            // below re-stamps the row, so the miss happens once per team and then never again.
             if (!existing.TryGetValue(descriptor.ExternalId, out var team)
                 && !existing.TryGetValue($"name:{descriptor.DisplayName}", out team))
             {
-                team = new Team(league.Id, descriptor.DisplayName);
+                team = new Team(league.Id, descriptor.DisplayName, isFollowed: league.IsFollowed);
                 workspace.Add(team);
                 existing[descriptor.ExternalId] = team;
             }
@@ -70,13 +57,8 @@ public class RefreshLeagueTeamsHandler(
 
         league.MarkTeamsRefreshed();
 
-        // A team inserted above has no identity until this flushes, which is why the candidate map
-        // below is built afterwards rather than as the loop goes.
         await unitOfWork.SaveChanges(ct);
 
-        // Candidates are held here rather than written to the team, because a logo row now means
-        // bytes and the bulk listing is not yet trustworthy enough to download from — see
-        // VerifyLogosAsync, which replaces these for the teams it gets to this run.
         var candidates = new Dictionary<int, IReadOnlyList<ImageCandidate>>();
 
         foreach (var descriptor in descriptors)
@@ -92,16 +74,6 @@ public class RefreshLeagueTeamsHandler(
         return descriptors.Count;
     }
 
-    /// <summary>
-    /// Re-sources the logo variants the bulk listing cannot be trusted for, one team at a time.
-    /// <para>
-    /// ESPN's bulk NFL listing hands every team the previous team id's image guid, so all the
-    /// on-colour marks come back as the wrong club. Correcting it costs one request per team, but
-    /// image addresses are stable, so it happens once per team and then never again. The per-run cap
-    /// is what keeps a 759-team league from turning a nightly refresh into a stampede: the remainder
-    /// is simply picked up by the next run.
-    /// </para>
-    /// </summary>
     private async Task VerifyLogosAsync(
         LeagueKey key, IEnumerable<Team> teams,
         Dictionary<int, IReadOnlyList<ImageCandidate>> candidates, CancellationToken ct)
@@ -127,7 +99,6 @@ public class RefreshLeagueTeamsHandler(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // One unreadable team must not abandon the rest; it stays unverified and is retried.
                 logger.LogWarning(ex, "Failed to verify logos for team {Team}.", team.DisplayName);
                 continue;
             }
@@ -150,11 +121,6 @@ public class RefreshLeagueTeamsHandler(
         }
     }
 
-    /// <summary>
-    /// Turns the chosen candidate into bytes. An unverified team gets only the plain default mark —
-    /// the one address a bulk listing is always right about — and picks up its preferred on-colour
-    /// variant on the run that verifies it.
-    /// </summary>
     private async Task DownloadLogosAsync(
         IEnumerable<Team> teams, Dictionary<int, IReadOnlyList<ImageCandidate>> candidates,
         bool refreshExisting, CancellationToken ct)
@@ -171,8 +137,6 @@ public class RefreshLeagueTeamsHandler(
 
             var label = LogoSelection.LabelFor(chosen);
 
-            // A hand upload is never displaced by a refresh, so there is nothing to spend a request
-            // on — the check is here as well as in the upsert so the download is skipped outright.
             if (Logos.Find(team.Logos, LogoVariants.Default, label) is { } held
                 && (!refreshExisting || held.Origin is ImageOrigin.Manual))
                 continue;

@@ -9,12 +9,15 @@ public class TitlesNeedingProductionTodaySpec : ISpecification<Title>
 
     public TitlesNeedingProductionTodaySpec()
     {
-        _todayUtcStart = TimeZoneInfo.ConvertTimeToUtc(DateTime.Now.Date, TimeZoneInfo.Local);
-        _todayUtcEnd = TimeZoneInfo.ConvertTimeToUtc(DateTime.Now.Date.AddDays(1), TimeZoneInfo.Local);
+        (_todayUtcStart, _todayUtcEnd) = LocalDay.UtcWindow();
     }
 
-    public IQueryable<Title> Apply(IQueryable<Title> q) =>
-        q.Where(t => t.IsActive &&
-            (!t.IsVideoCreated || !t.ArtworkCreated) &&
+    public IQueryable<Title> Apply(IQueryable<Title> q)
+    {
+        var composed = TitleProductionProfile.ComposedArtworkTypes;
+
+        return q.Where(t => t.IsActive &&
+            (!t.IsVideoCreated || (!t.ArtworkCreated && composed.Contains(t.Type))) &&
             (t.StartUtc == null || (t.StartUtc >= _todayUtcStart && t.StartUtc < _todayUtcEnd)));
+    }
 }

@@ -11,15 +11,12 @@ internal static class EspnExtensions
 {
     internal static void ConfigureEspn(this WebApplicationBuilder builder)
     {
-        // One HttpClient for everything ESPN. Headers are attached per request rather than on the
-        // client because the User-Agent is a database setting, not a compile-time constant.
         builder.Services.AddHttpClient<EspnTransport>(c => c.Timeout = TimeSpan.FromSeconds(30))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
                 AutomaticDecompression = System.Net.DecompressionMethods.All,
             });
 
-        // Scoped so the per-run request budget covers one unit of work.
         builder.Services.AddScoped<EspnRequestGate>();
 
         builder.Services.AddScoped<ISportsCatalogSource, EspnSportsCatalogSource>();

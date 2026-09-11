@@ -65,7 +65,6 @@ internal record EspnBroadcast(
     [property: JsonPropertyName("priority")] int? Priority
 );
 
-/// <summary>"television" or "streaming" — the broadcaster's kind, for free, per airing.</summary>
 internal record EspnBroadcastType(
     [property: JsonPropertyName("slug")] string? Slug
 );

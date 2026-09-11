@@ -27,11 +27,6 @@ public static class DbExtensions
         builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork<AppDbContext>>();
     }
 
-    /// <summary>
-    /// Applies migrations and seeds the singleton rows. Returns <c>true</c> when this was a brand-new
-    /// database (no migrations had been applied yet) — the caller uses that to decide whether to run
-    /// the one-time catalog seed and broadcaster crawl.
-    /// </summary>
     public static async Task<bool> InitializeDatabase(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
@@ -40,8 +35,6 @@ public static class DbExtensions
 
         try
         {
-            // An empty history table (or a missing database file) means nothing has ever been
-            // applied here — this is the first run against this volume.
             var freshDatabase = !(await db.Database.GetAppliedMigrationsAsync()).Any();
 
             await db.Database.MigrateAsync();

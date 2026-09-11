@@ -2,10 +2,6 @@ using HeadendHQ.Core.Media;
 
 namespace HeadendHQ.Core.Catalog.Leagues;
 
-/// <summary>
-/// A Jellyfin clearlogo. ESPN has no equivalent asset, so these are upload-only; a league without
-/// one simply produces VOD folders with no clearlogo. <see cref="Label"/> is therefore always null.
-/// </summary>
 public class LeagueWordmark : ILogo
 {
     private LeagueWordmark() { }

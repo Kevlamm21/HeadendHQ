@@ -17,8 +17,6 @@ public class UploadTeamLogoOverrideHandler(IWorkspace workspace, IMediator media
         var imageId = await mediator.Send(new UploadImageCommand(command.Bytes, ImagePurpose.TeamLogo), ct);
         team.UpsertLogo(command.Rel, imageId, ImageOrigin.Manual);
 
-        // Pointless to upload a mark the team will not use, and the rel the user uploaded under is
-        // the clearest statement of which one they meant.
         team.PreferLogo(command.Rel);
 
         return team;

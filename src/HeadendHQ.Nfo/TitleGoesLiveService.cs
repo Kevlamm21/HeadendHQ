@@ -13,8 +13,6 @@ public class TitleGoesLiveService(
 {
     public async Task MarkAsLiveAsync(Guid titleId, CancellationToken ct = default)
     {
-        // Scheduled to the event start time, so the title may have been cleaned up
-        // or reconciled away long before this runs.
         var exists = await readModel.Count(new EntityByIdSpecification<Title, Guid>(titleId), ct) > 0;
 
         if (!exists)

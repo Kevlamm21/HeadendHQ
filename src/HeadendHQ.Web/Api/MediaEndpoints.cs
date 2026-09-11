@@ -15,8 +15,6 @@ public static class MediaEndpoints
             if (image is null)
                 return Results.NotFound();
 
-            // Images are content-addressed, so the hash is a genuinely strong ETag and the bytes at
-            // this id can never change. Jellyfin re-reads these constantly; let it cache hard.
             var etag = new EntityTagHeaderValue($"\"{image.Sha256}\"");
             http.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
 

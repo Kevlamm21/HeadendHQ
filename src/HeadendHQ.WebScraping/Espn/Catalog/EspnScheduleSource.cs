@@ -8,11 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
-/// <summary>
-/// Reads ESPN's watch guide, which is the only feed that says where an event can actually be
-/// streamed. That matters more than completeness here: a game we cannot launch is a game we do not
-/// want a VOD folder for.
-/// </summary>
 internal sealed class EspnScheduleSource(
     EspnTransport transport,
     ILogger<EspnScheduleSource> logger) : IScheduleSource
@@ -24,11 +19,6 @@ internal sealed class EspnScheduleSource(
     public async Task<IReadOnlyList<ScheduledEventDescriptor>> GetEventsAsync(
         ScheduleQuery query, CancellationToken ct)
     {
-        // Filtered by league server-side, which is what keeps the response small and the page count
-        // low. Deliberately *not* filtered by broadcaster, even though the feed supports it: doing so
-        // returns only services already subscribed to, so a network airing a game could never be seen
-        // — and therefore never subscribed to or mapped. The caller filters by subscription itself,
-        // after the broadcaster has been recorded. Same number of requests either way.
         var leagues = query.LeagueSlugs.Count > 0 ? string.Join(",", query.LeagueSlugs) : null;
         const string? watch = null;
 
@@ -39,7 +29,6 @@ internal sealed class EspnScheduleSource(
         {
             foreach (var espnEvent in await FetchDayAsync(date, leagues, watch, ct))
             {
-                // The same fixture appears on several day-pages near midnight boundaries.
                 if (!seen.Add(espnEvent.Id))
                     continue;
 
@@ -109,7 +98,6 @@ internal sealed class EspnScheduleSource(
             .DistinctBy(b => b.Slug)
             .ToList();
 
-        // Only these two actions carry a usable watch link; anything else is a marketing page.
         var watchUrl = espnEvent.Watch?.Style?.Action is "paywall" or "picker"
             ? espnEvent.Watch.Style.Link
             : null;

@@ -47,11 +47,6 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         await WriteAsync(title, ct);
     }
 
-    /// <summary>
-    /// Written for Jellyfin specifically. Its NFO parser reads a fixed set of tags and ignores the
-    /// rest, and its image handling keys off the <c>aspect</c> attribute, so the shape here is not
-    /// interchangeable with Kodi's or Plex's.
-    /// </summary>
     private XDocument BuildDocument(Title title, string? publicBaseUrl)
     {
         var name = title.Name;
@@ -60,8 +55,6 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
             new XElement("title", name),
             new XElement("originaltitle", name));
 
-        // These are synthetic launcher entries, not films. Without this Jellyfin's online providers
-        // try to match them against real movies and overwrite everything below.
         movie.Add(new XElement("lockdata", "true"));
 
         if (title.Plot is not null) movie.Add(new XElement("plot", title.Plot));
@@ -73,8 +66,6 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         foreach (var genre in title.Genres)
             movie.Add(new XElement("genre", genre));
 
-        // Every set is written as a tag; smart-collection logic on the client turns the tags it
-        // cares about into collections. Jellyfin's <set> is deliberately not written here.
         foreach (var set in title.Sets)
             movie.Add(new XElement("tag", set));
 
@@ -83,7 +74,7 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
 
         if (title.UniqueId is not null)
             movie.Add(new XElement("uniqueid",
-                new XAttribute("type", "espn"), new XAttribute("default", "true"), title.UniqueId));
+                new XAttribute("type", UniqueIdType(title.UniqueId)), new XAttribute("default", "true"), title.UniqueId));
 
         AddArtwork(movie, title, publicBaseUrl, name);
         AddCast(movie, title.Cast, publicBaseUrl);
@@ -91,11 +82,6 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), movie);
     }
 
-    /// <summary>
-    /// aspect drives which image slot Jellyfin fills: poster -> Primary, landscape -> Thumb,
-    /// clearlogo -> Logo, and a &lt;thumb&gt; nested in &lt;fanart&gt; -> Backdrop. The images live in
-    /// the media store, so these are /media/images/{id} URLs like the actor thumbs.
-    /// </summary>
     private void AddArtwork(XElement movie, Title title, string? publicBaseUrl, string name)
     {
         if (string.IsNullOrEmpty(publicBaseUrl))
@@ -141,6 +127,9 @@ public class NfoWriter(IReadModel readModel, ILogger<NfoWriter> logger) : INfoWr
             movie.Add(actor);
         }
     }
+
+    private static string UniqueIdType(string uniqueId) =>
+        uniqueId.IndexOf(':') is > 0 and var colon ? uniqueId[..colon] : "headendhq";
 
     private static string MediaUrl(string publicBaseUrl, int imageId) =>
         $"{publicBaseUrl}/media/images/{imageId}";

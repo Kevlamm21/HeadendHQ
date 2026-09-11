@@ -8,14 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HeadendHQ.Data;
 
-/// <summary>
-/// Catalog aggregates own their logos, so they load with their parent and no specification ever has
-/// to reach for an Include. That is what keeps EF Core out of <c>HeadendHQ.Core</c>. A logo row holds
-/// a plain image id — the address the bytes came from and the validators for the next refresh live
-/// once on <c>Images</c>, not copied onto every row pointing at them.
-/// The source identity is a plain column pair on the aggregate's own table rather than an owned
-/// collection, so resolving by external id is one indexed comparison with nothing to join.
-/// </summary>
 internal class SportConfiguration : IEntityTypeConfiguration<Sport>
 {
     public void Configure(EntityTypeBuilder<Sport> builder)
@@ -53,7 +45,6 @@ internal class LeagueConfiguration : IEntityTypeConfiguration<League>
             mark.HasKey(w => w.Id);
             mark.HasIndex(w => new { w.LeagueId, w.Variant }).IsUnique();
 
-            // Upload-only, so there is no source token to record and no origin to vary.
             mark.Ignore(w => w.Label);
             mark.Ignore(w => w.Origin);
         });

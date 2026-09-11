@@ -7,20 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
-/// <summary>
-/// Reads ESPN's reference data and translates it into source-neutral descriptors.
-/// <para>
-/// The one non-obvious decision here is reading slugs out of <c>$ref</c> URLs instead of following
-/// them. ESPN's collection endpoints return nothing but links, so a naive walk of the 356 leagues
-/// would cost 356 requests before we learned a single slug — but the slug is already the last
-/// path segment of every link.
-/// </para>
-/// </summary>
 internal sealed class EspnSportsCatalogSource(
     EspnTransport transport,
     ILogger<EspnSportsCatalogSource> logger) : ISportsCatalogSource
 {
-    /// <summary>Sports with no meaningful team roster; their teams endpoint is not worth calling.</summary>
     private static readonly HashSet<string> IndividualSports =
         new(StringComparer.OrdinalIgnoreCase) { "golf", "tennis", "mma", "racing" };
 
@@ -68,7 +58,6 @@ internal sealed class EspnSportsCatalogSource(
 
     public async Task<IReadOnlyList<TeamDescriptor>> GetTeamsAsync(LeagueKey league, CancellationToken ct)
     {
-        // One request returns the whole league with colours and all sixteen logo variants.
         var json = await transport.GetStringAsync(
             EspnEndpoints.Teams(league.SportSlug, league.LeagueSlug), ct);
 
@@ -87,19 +76,9 @@ internal sealed class EspnSportsCatalogSource(
                 PrimaryColorHex: t.Color,
                 AlternateColorHex: t.AlternateColor,
                 IsActive: t.IsActive ?? true,
-                // Deliberately not the guid variants: see GetTeamLogosAsync.
                 Logos: ToCandidates(t.Logos, GuidAddressed, keep: false)))];
     }
 
-    /// <summary>
-    /// The guid-addressed logo variants, fetched one team at a time from the core API.
-    /// <para>
-    /// The bulk teams listing carries these too, and for the NFL every single one of them is wrong:
-    /// ESPN hands each team the guid belonging to the team with the next-lower id, so Green Bay
-    /// (id 9) gets Detroit's (id 8) mark. The core API's per-team record returns the correct guid.
-    /// Guids are stable, so a caller only ever needs to do this once per team.
-    /// </para>
-    /// </summary>
     public async Task<IReadOnlyList<ImageCandidate>> GetTeamLogosAsync(TeamKey team, CancellationToken ct)
     {
         var detail = await TryGetAsync<EspnTeamDetail>(
@@ -121,7 +100,6 @@ internal sealed class EspnSportsCatalogSource(
                     ExternalId: a.Id,
                     DisplayName: a.DisplayName ?? "Unknown",
                     ShortName: a.ShortName,
-                    // Abbreviation first: CastRanker's position weights are keyed by abbreviation ("QB", "WR").
                     Position: a.Position?.Abbreviation ?? a.Position?.DisplayName,
                     Jersey: a.Jersey,
                     ExperienceYears: a.Experience?.Years,
@@ -141,10 +119,6 @@ internal sealed class EspnSportsCatalogSource(
         await EspnDepthChart.FetchAsync(
             transport, team.League.SportSlug, team.League.LeagueSlug, team.TeamExternalId, seasonYear, logger, ct);
 
-    /// <summary>
-    /// Pulls the last path segment out of each <c>$ref</c>. ESPN's collections are link-only, but the
-    /// links are addressed by slug, so this replaces one request per item with zero.
-    /// </summary>
     private async Task<IReadOnlyList<string>> GetRefSlugsAsync(string url, CancellationToken ct)
     {
         var json = await transport.GetStringAsync(url, ct);
@@ -166,13 +140,11 @@ internal sealed class EspnSportsCatalogSource(
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
         {
-            // A single unreadable league must not abandon the whole discovery run.
             logger.LogWarning(ex, "Failed to read {Url}; continuing.", url);
             return default;
         }
     }
 
-    /// <summary>An <c>a.espncdn.com/guid/{guid}/logos/...</c> asset, as opposed to an abbreviation-keyed one.</summary>
     private static bool GuidAddressed(EspnLogo logo) =>
         logo.Href.Contains("/guid/", StringComparison.OrdinalIgnoreCase);
 
@@ -188,7 +160,6 @@ internal sealed class EspnSportsCatalogSource(
     private static string? Coalesce(string? a, string? b) =>
         !string.IsNullOrWhiteSpace(a) ? a : !string.IsNullOrWhiteSpace(b) ? b : null;
 
-    /// <summary>Fallback display name when ESPN gives us nothing but the slug.</summary>
     private static string Humanize(string slug) =>
         string.Join(' ', slug.Split('-', StringSplitOptions.RemoveEmptyEntries)
             .Select(part => part.Length <= 3 ? part.ToUpperInvariant() : char.ToUpperInvariant(part[0]) + part[1..]));

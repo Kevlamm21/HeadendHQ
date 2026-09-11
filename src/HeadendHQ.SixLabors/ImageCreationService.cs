@@ -39,10 +39,6 @@ public class ImageCreationService(
         return await mediator.Send(new UploadImageCommand(bytes, purpose), ct);
     }
 
-    /// <summary>
-    /// Resolved ingredients for the split-card render — image ids into the media store plus colour
-    /// hex. All optional; the card falls back when a piece is missing.
-    /// </summary>
     private record Ingredients(
         int? PrimaryLogoImageId,
         int? SecondaryLogoImageId,
@@ -100,7 +96,6 @@ public class ImageCreationService(
         return broadcaster.PreferredLogo()?.ImageId;
     }
 
-    /// <summary>Every ingredient is already an image id, so loading it is a primary-key read.</summary>
     private async Task<byte[]?> LoadBytesAsync(int? imageId, CancellationToken ct)
     {
         if (imageId is not { } id)

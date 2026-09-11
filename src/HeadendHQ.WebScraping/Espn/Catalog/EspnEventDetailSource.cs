@@ -7,15 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
-/// <summary>
-/// The one extra request per event: venue, game note, series standing and the cast.
-/// <para>
-/// The cast is the awkward part. ESPN fills <c>boxscore.players</c> only once a game is under way
-/// and <c>leaders</c> only once teams have current-season stats, so a game scheduled for next week
-/// has neither. Hence the chain of sources ending at the team roster — and the roster is the only
-/// branch that costs additional requests, which is why it runs last.
-/// </para>
-/// </summary>
 internal sealed class EspnEventDetailSource(
     EspnTransport transport,
     ILogger<EspnEventDetailSource> logger) : IEventDetailSource
@@ -39,10 +30,6 @@ internal sealed class EspnEventDetailSource(
             Cast: BuildCast(summary));
     }
 
-    /// <summary>
-    /// Cast candidates from whichever section of the summary is populated, plus probable starters,
-    /// which are the most relevant players in a scheduled baseball game.
-    /// </summary>
     private static List<CastCandidate> BuildCast(EspnSummaryRoot summary)
     {
         var candidates = FromRosters(summary);
@@ -171,7 +158,6 @@ internal sealed class EspnEventDetailSource(
         new(athlete.Id,
             athlete.DisplayName ?? "Unknown",
             athlete.ShortName,
-            // Abbreviation first: CastRanker's position weights are keyed by abbreviation ("QB", "WR").
             athlete.Position?.Abbreviation ?? athlete.Position?.DisplayName,
             athlete.Jersey,
             athlete.Experience?.Years,
@@ -189,7 +175,6 @@ internal sealed class EspnEventDetailSource(
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
         {
-            // Detail is an enhancement; a title without a venue is still a usable title.
             logger.LogWarning(ex, "Failed to read summary for event {Event}.", key.EventExternalId);
             return null;
         }

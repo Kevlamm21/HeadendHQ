@@ -4,11 +4,6 @@ using Mediator;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-/// <summary>
-/// Re-runs lineup matching over every broadcaster that has no hand-set mapping. Pure database work —
-/// no upstream requests — so it is safe to run every night after the lineup refresh, and it is what
-/// lets the crawl run before the lineup exists (or a tuner be added later) without re-crawling.
-/// </summary>
 public record RematchAffiliatesCommand : ICommand<int>;
 
 public class RematchAffiliatesHandler(IWorkspace workspace)

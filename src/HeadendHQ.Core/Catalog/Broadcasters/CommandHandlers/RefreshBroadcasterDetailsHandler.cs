@@ -6,10 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-/// <summary>
-/// Re-reads the source record for broadcasters that have never had one, so a logo that only became
-/// resolvable later still arrives. Idempotent and bounded by how many are outstanding.
-/// </summary>
 public record RefreshBroadcasterDetailsCommand : ICommand<int>;
 
 public class RefreshBroadcasterDetailsHandler(
