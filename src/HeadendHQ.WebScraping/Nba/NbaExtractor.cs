@@ -7,7 +7,8 @@ public class NbaExtractor(NbaLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex IdPattern = new(@"([0-9]{10})$", RegexOptions.Compiled);
 
-    public string BroadcasterSlug => "nba-league-pass";
+    public string ProviderKey => "nba-league-pass";
+    public string Name => "NBA League Pass";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

@@ -5,6 +5,7 @@ using HeadendHQ.Core.Events;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Streaming;
 using HeadendHQ.Core.Titles;
 using Mediator;
 
@@ -28,6 +29,7 @@ public class DeleteOrphanedImagesHandler(IWorkspace workspace, IReadModel readMo
         referenced.UnionWith(await readModel.Search(new LeagueLogoImageIdsSpec(candidates), ct));
         referenced.UnionWith(await readModel.Search(new BroadcasterLogoImageIdsSpec(candidates), ct));
         referenced.UnionWith(await readModel.Search(new EventHeadshotImageIdsSpec(candidates), ct));
+        referenced.UnionWith(await readModel.Search(new StreamingServiceLogoImageIdsSpec(candidates), ct));
 
         foreach (var title in await readModel.All<Title>(ct))
         {
@@ -86,5 +88,11 @@ public class DeleteOrphanedImagesHandler(IWorkspace workspace, IReadModel readMo
             queryable.SelectMany(e => e.Cast)
                 .Where(c => c.HeadshotImageId != null && ids.Contains(c.HeadshotImageId.Value))
                 .Select(c => c.HeadshotImageId!.Value);
+    }
+
+    private class StreamingServiceLogoImageIdsSpec(List<int> ids) : ISpecification<StreamingService, int>
+    {
+        public IQueryable<int> Apply(IQueryable<StreamingService> queryable) =>
+            queryable.SelectMany(s => s.Logos).Select(l => l.ImageId).Where(id => ids.Contains(id));
     }
 }

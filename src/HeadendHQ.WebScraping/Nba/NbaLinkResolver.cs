@@ -7,8 +7,6 @@ public class NbaLinkResolver : ILinkResolver
 {
     private static readonly Regex IdPattern = new(@"([0-9]{10})", RegexOptions.Compiled);
 
-    public string BroadcasterSlug => "nba-league-pass";
-
     public Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(rawLink))

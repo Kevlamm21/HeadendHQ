@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.ApplyConfiguration(new SportConfiguration());
         modelBuilder.ApplyConfiguration(new LeagueConfiguration());
         modelBuilder.ApplyConfiguration(new TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new StreamingServiceConfiguration());
         modelBuilder.ApplyConfiguration(new BroadcasterConfiguration());
         modelBuilder.ApplyConfiguration(new SportingEventConfiguration());
     }

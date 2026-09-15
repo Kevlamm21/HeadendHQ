@@ -6,6 +6,7 @@ using HeadendHQ.Core.Events;
 using HeadendHQ.Core.Media.CommandHandlers;
 using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Streaming;
 using Mediator;
 using SixLabors.ImageSharp;
 using ImagePurpose = HeadendHQ.Core.Media.ImagePurpose;
@@ -51,8 +52,6 @@ public class ImageCreationService(
         var league = await workspace.LoadById<League, int>(ev.LeagueId, ct);
         var home = ev.HomeTeamId is { } h ? await workspace.LoadById<Team, int>(h, ct) : null;
         var away = ev.AwayTeamId is { } a ? await workspace.LoadById<Team, int>(a, ct) : null;
-        var broadcaster = ev.BroadcasterId is { } b ? await workspace.LoadById<Broadcaster, int>(b, ct) : null;
-        var logoSource = await ResolveCarrierLogoSourceAsync(broadcaster, ct);
 
         return new Ingredients(
             home?.SelectedLogo()?.ImageId,
@@ -60,21 +59,31 @@ public class ImageCreationService(
             home?.PrimaryColorHex,
             away?.PrimaryColorHex,
             league.SelectedLogo(ev.Variant)?.ImageId,
-            logoSource?.SelectedLogo()?.ImageId);
+            await ResolveProviderLogoAsync(ev, ct));
     }
 
-    private async Task<Broadcaster?> ResolveCarrierLogoSourceAsync(Broadcaster? broadcaster, CancellationToken ct)
+    private async Task<int?> ResolveProviderLogoAsync(SportingEvent ev, CancellationToken ct)
     {
-        if (broadcaster is null)
+        if (ev.BroadcasterId is not { } broadcasterId || ev.StreamingServiceId is not { } serviceId)
             return null;
 
-        if (broadcaster.IptvGuideNumber is { Length: > 0 })
-            return broadcaster;
+        var broadcaster = await workspace.LoadById<Broadcaster, int>(broadcasterId, ct);
 
-        if (broadcaster.MapsToBroadcasterId is not { } targetId)
-            return broadcaster;
+        var assignment = broadcaster.StreamingAssignments.FirstOrDefault(a => a.StreamingServiceId == serviceId);
 
-        return await workspace.LoadById<Broadcaster, int>(targetId, ct);
+        if (assignment?.UseBroadcasterLogo == true)
+            return broadcaster.SelectedLogo()?.ImageId;
+
+        var service = await workspace.LoadById<StreamingService, int>(serviceId, ct);
+
+        if (service.LogoFor(assignment?.LogoVariant) is { } imageId)
+            return imageId;
+
+        if (service.LogoBroadcasterId is not { } borrowedId)
+            return null;
+
+        var borrowed = await workspace.LoadSingleOrDefault(new EntityByIdSpecification<Broadcaster, int>(borrowedId), ct);
+        return borrowed?.SelectedLogo()?.ImageId;
     }
 
     private async Task<byte[]?> LoadBytesAsync(int? imageId, CancellationToken ct)

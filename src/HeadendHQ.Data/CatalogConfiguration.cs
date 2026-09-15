@@ -3,6 +3,7 @@ using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Streaming;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,6 +90,18 @@ internal class BroadcasterConfiguration : IEntityTypeConfiguration<Broadcaster>
             logo.WithOwner().HasForeignKey(l => l.BroadcasterId);
             logo.HasKey(l => l.Id);
             logo.HasIndex(l => new { l.BroadcasterId, l.Variant, l.Label }).IsUnique();
+        });
+
+        builder.OwnsMany(e => e.StreamingAssignments, assignment =>
+        {
+            assignment.ToTable("BroadcasterStreamingAssignments");
+            assignment.WithOwner().HasForeignKey(a => a.BroadcasterId);
+            assignment.HasKey(a => a.Id);
+            assignment.HasOne<StreamingService>()
+                .WithMany()
+                .HasForeignKey(a => a.StreamingServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            assignment.HasIndex(a => a.StreamingServiceId);
         });
     }
 }

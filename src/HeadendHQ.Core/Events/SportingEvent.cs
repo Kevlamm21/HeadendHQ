@@ -26,6 +26,7 @@ public class SportingEvent : Entity<Guid>
     public int? HomeTeamId { get; private set; }
     public int? AwayTeamId { get; private set; }
     public int? BroadcasterId { get; private set; }
+    public int? StreamingServiceId { get; private set; }
 
     public string HomeTeamName { get; private set; } = string.Empty;
     public string AwayTeamName { get; private set; } = string.Empty;
@@ -67,14 +68,19 @@ public class SportingEvent : Entity<Guid>
         Touch();
     }
 
-    public void SetParticipants(
-        int? homeTeamId, string homeTeamName, int? awayTeamId, string awayTeamName, int? broadcasterId)
+    public void SetParticipants(int? homeTeamId, string homeTeamName, int? awayTeamId, string awayTeamName)
     {
         HomeTeamId = homeTeamId;
         AwayTeamId = awayTeamId;
         HomeTeamName = homeTeamName;
         AwayTeamName = awayTeamName;
+        Touch();
+    }
+
+    public void AssignStreaming(int? broadcasterId, int? streamingServiceId)
+    {
         BroadcasterId = broadcasterId;
+        StreamingServiceId = streamingServiceId;
         Touch();
     }
 

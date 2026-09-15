@@ -15,6 +15,7 @@ public static class WebExtensions
         builder.Services.AddScoped<CatalogSeedJob>();
         builder.Services.AddScoped<BroadcasterDiscoveryJob>();
         builder.Services.AddScoped<TeamLogoJob>();
+        builder.Services.AddScoped<StreamingServiceSyncJob>();
     }
 
     public static void UseJobs(this WebApplication app, bool freshDatabase)
@@ -26,6 +27,8 @@ public static class WebExtensions
             job => job.RunAsync(CancellationToken.None),
             schedule,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Local });
+
+        BackgroundJob.Enqueue<StreamingServiceSyncJob>(job => job.RunAsync(CancellationToken.None));
 
         if (bool.TryParse(app.Configuration["NightlyJob:RunOnStartup"], out var runOnStartup) && runOnStartup)
             BackgroundJob.Enqueue<NightlyJob>(job => job.RunAsync(CancellationToken.None));

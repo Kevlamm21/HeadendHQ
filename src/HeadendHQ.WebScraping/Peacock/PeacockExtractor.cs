@@ -10,7 +10,8 @@ public class PeacockExtractor(PeacockLinkResolver linkResolver) : IAdbExtractor
         @"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public string BroadcasterSlug => "peacock";
+    public string ProviderKey => "peacock";
+    public string Name => "Peacock";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

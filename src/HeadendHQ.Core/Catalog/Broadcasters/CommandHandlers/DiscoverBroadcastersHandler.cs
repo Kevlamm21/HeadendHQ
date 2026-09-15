@@ -1,12 +1,13 @@
+using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Iptv;
+using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
 using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 
-public record DiscoverBroadcastersCommand(int? Max = null) : ICommand<DiscoverBroadcastersResult>;
+public record DiscoverBroadcastersCommand(int? Max = null, bool Refresh = false) : ICommand<DiscoverBroadcastersResult>;
 
 public record DiscoverBroadcastersResult(int Examined, int Created, int LogosAdded, bool SweepComplete);
 
@@ -22,8 +23,6 @@ public class DiscoverBroadcastersHandler(
 
     public async ValueTask<DiscoverBroadcastersResult> Handle(DiscoverBroadcastersCommand command, CancellationToken ct)
     {
-        var lineup = LineupIndex.Build(await workspace.Load(AllSpecification<IptvChannel>.Instance, ct));
-
         var all = await workspace.LoadAll<Broadcaster>(ct);
         var bySlugOrAlias = new Dictionary<string, Broadcaster>(StringComparer.OrdinalIgnoreCase);
         var resolvedIds = new HashSet<string>();
@@ -45,12 +44,13 @@ public class DiscoverBroadcastersHandler(
         var logosAdded = 0;
         var sinceCheckpoint = 0;
         var cappedOut = false;
+        var droppedImages = new List<int>();
 
         try
         {
             foreach (var id in ids)
             {
-                if (resolvedIds.Contains(id))
+                if (!command.Refresh && resolvedIds.Contains(id))
                     continue;
 
                 if (command.Max is { } max && examined >= max)
@@ -70,8 +70,8 @@ public class DiscoverBroadcastersHandler(
 
                 if (existing is not null && !canonical)
                 {
-                    logosAdded += (await RefreshBroadcasterLogosHandler.FillLogosAsync(
-                        existing, detail.Logos, mediator, ct)).Stored.Count;
+                    // An alias record only fills gaps; refreshing from it would replace the canonical record's logos.
+                    logosAdded += await StoreLogosAsync(existing, detail.Logos, refresh: false, droppedImages, ct);
                 }
                 else
                 {
@@ -80,14 +80,12 @@ public class DiscoverBroadcastersHandler(
                     broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, BroadcasterKind.Unknown);
                     broadcaster.TrackSource(source.SourceKey, detail.ExternalId);
 
-                    logosAdded += (await RefreshBroadcasterLogosHandler.FillLogosAsync(
-                        broadcaster, detail.Logos, mediator, ct)).Stored.Count;
+                    logosAdded += await StoreLogosAsync(broadcaster, detail.Logos, command.Refresh, droppedImages, ct);
 
                     broadcaster.MarkDetailFetched();
 
                     if (existing is null)
                     {
-                        BroadcasterClassification.ClassifyAgainstLineup(broadcaster, lineup);
                         workspace.Add(broadcaster);
                         bySlugOrAlias[detail.Slug] = broadcaster;
                         created++;
@@ -106,17 +104,33 @@ public class DiscoverBroadcastersHandler(
         catch (CatalogSourceThrottledException ex)
         {
             await unitOfWork.SaveChanges(ct);
+            await mediator.Send(new DeleteOrphanedImagesCommand(droppedImages), ct);
             logger.LogInformation(ex,
                 "Broadcaster crawl stopped after {Examined} record(s); it resumes on the next run.", examined);
             return new DiscoverBroadcastersResult(examined, created, logosAdded, SweepComplete: false);
         }
 
         await unitOfWork.SaveChanges(ct);
+        await mediator.Send(new DeleteOrphanedImagesCommand(droppedImages), ct);
 
         logger.LogInformation(
-            "Broadcaster crawl: examined {Examined}, created {Created}, +{Logos} logo(s), complete={Complete}.",
-            examined, created, logosAdded, !cappedOut);
+            "Broadcaster crawl: examined {Examined}, created {Created}, +{Logos} logo(s), refresh={Refresh}, complete={Complete}.",
+            examined, created, logosAdded, command.Refresh, !cappedOut);
 
         return new DiscoverBroadcastersResult(examined, created, logosAdded, SweepComplete: !cappedOut);
+    }
+
+    private async Task<int> StoreLogosAsync(
+        Broadcaster broadcaster, IReadOnlyList<ImageCandidate>? candidates, bool refresh, List<int> dropped,
+        CancellationToken ct)
+    {
+        if (!refresh && broadcaster.HasFetchedLogos)
+            return 0;
+
+        var download = await CatalogLogoDownloader.DownloadAsync(
+            mediator, LogoPolicy.Broadcaster, candidates, ImagePurpose.BroadcasterLogo, refresh, ct);
+
+        dropped.AddRange(broadcaster.StoreFetchedLogos(download));
+        return download.Stored.Count;
     }
 }

@@ -3,6 +3,7 @@ using HeadendHQ.Core.Catalog.Leagues.CommandHandlers;
 using HeadendHQ.Core.Events.CommandHandlers;
 using HeadendHQ.Core.Iptv.CommandHandlers;
 using HeadendHQ.Core.Settings;
+using HeadendHQ.Core.Streaming.CommandHandlers;
 using HeadendHQ.VodLauncher.EventHandlers;
 using Mediator;
 
@@ -28,9 +29,9 @@ public class NightlyJob(IMediator mediator, ILogger<NightlyJob> logger)
         try
         {
             await mediator.Send(new RefreshIptvLineupCommand(), ct);
-            var matched = await mediator.Send(new RematchAffiliatesCommand(), ct);
-            if (matched > 0)
-                logger.LogInformation("Matched {Count} affiliate(s) to a lineup channel.", matched);
+            var added = await mediator.Send(new SyncStreamingServicesCommand(), ct);
+            if (added > 0)
+                logger.LogInformation("Added {Count} streaming service(s).", added);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

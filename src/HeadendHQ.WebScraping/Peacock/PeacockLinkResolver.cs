@@ -5,8 +5,6 @@ namespace HeadendHQ.WebScraping.Peacock;
 
 public class PeacockLinkResolver : ILinkResolver
 {
-    public string BroadcasterSlug => "peacock";
-
     public async Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(rawLink))

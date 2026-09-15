@@ -34,12 +34,11 @@ public static class CatalogEndpoints
             .WithName("GetLeagueTeams")
             .WithSummary("List a Teams per League");
 
-        catalog.MapGet("/broadcasters", async (bool? subscribed, string? affiliate, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(
-                new GetBroadcastersQuery(subscribed, ParseAffiliateFilter(affiliate)), ct)))
+        catalog.MapGet("/broadcasters", async (bool? subscribed, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new GetBroadcastersQuery(subscribed), ct)))
             .WithName("GetBroadcasters")
             .WithSummary("List broadcasters")
-            .WithDescription("Optionally filtered to subscribed only, or by affiliate=national|local|other.");
+            .WithDescription("Optionally filtered to broadcasters with at least one streaming assignment.");
 
         catalog.MapPatch("/leagues/{id:int}", async (int id, UpdateLeagueRequest body, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new UpdateLeagueCommand(id, body.IsFollowed, body.SelectedLogoId), ct)))
@@ -56,25 +55,29 @@ public static class CatalogEndpoints
             .WithSummary("Update a team")
             .WithDescription("Follow the team, pick which of its logos artwork uses, or override its colours.");
 
-        catalog.MapPatch("/broadcasters/{id:int}", async (int id, UpdateBroadcasterRequest body, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new UpdateBroadcasterCommand(
-                id, body.IsSubscribed,
-                body.SetMapping, body.MapsToBroadcasterId, body.IptvGuideNumber, body.SelectedLogoId), ct)))
-            .WithName("UpdateBroadcaster")
-            .WithSummary("Subscribe to a broadcaster, or point it at another")
+        catalog.MapPut("/broadcasters/{id:int}/streaming", async (
+            int id, List<StreamingAssignmentRequest> body, IMediator mediator, CancellationToken ct) =>
+            Results.Ok(await mediator.Send(new SetStreamingAssignmentsCommand(id, body), ct)))
+            .WithName("SetBroadcasterStreaming")
+            .WithSummary("Set where a broadcaster's games can be watched")
             .WithDescription(
-                "Send setMapping=true with mapsToBroadcasterId to make a network borrow another's identity — ABC pointed at ESPN puts the ESPN mark on the poster and launches the ESPN app — " +
-                "or with iptvGuideNumber to tune an IPTV channel instead, which keeps the network's own mark. Send setMapping=true with neither to clear the mapping.");
+                "Replaces the broadcaster's assignments. A game's assignments are tried by priority (lower first): an IPTV service is used " +
+                "only if the guide shows the game on that channel, a deep-link service is used directly, and an entry with no " +
+                "streamingServiceId blocks the game from being imported. An empty list unsubscribes the broadcaster. " +
+                "For the poster, useBroadcasterLogo passes this broadcaster's ESPN logo through; otherwise the service's " +
+                "logoVariant logo is used, falling back to its Default logo.");
 
-        catalog.MapPost("/broadcasters/discover", (int? max) =>
+        catalog.MapPost("/broadcasters/discover", (int? max, bool? refresh) =>
         {
             var jobId = BackgroundJob.Enqueue<BroadcasterDiscoveryJob>(
-                job => job.RunAsync(max, CancellationToken.None));
-            return Results.Accepted($"/hangfire/jobs/details/{jobId}", new { jobId, max });
+                job => job.RunAsync(max, refresh == true, CancellationToken.None));
+            return Results.Accepted($"/hangfire/jobs/details/{jobId}", new { jobId, max, refresh });
         })
             .WithName("DiscoverBroadcasters")
             .WithSummary("Crawl ESPN's media index for the full broadcaster catalogue")
-            .WithDescription("Enqueues the discovery crawl (its own request budget). A completed crawl only re-checks the index; ?max= caps records resolved this run.");
+            .WithDescription(
+                "Enqueues the discovery crawl (its own request budget). Without refresh, a completed crawl only resolves new records. " +
+                "?refresh=true re-reads every broadcaster and re-downloads its logos. ?max= caps records read this run.");
 
         catalog.MapPost("/sports/{slug}/sync", async (string slug, IMediator mediator, CancellationToken ct) =>
             Results.Ok(new { sport = slug, leagues = await mediator.Send(new SyncSportLeaguesCommand(slug), ct) }))
@@ -134,17 +137,8 @@ public static class CatalogEndpoints
             .WithDescription("Adds the image to the team's logos without selecting it; select it with PATCH /catalog/teams/{id}.")
             .DisableAntiforgery();
 
-        catalog.MapPost("/broadcasters/{id:int}/logos", async (
-            int id, IFormFile logo, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new UploadBroadcasterLogoCommand(id, await ReadBytesAsync(logo, ct)), ct)))
-            .WithName("UploadBroadcasterLogo")
-            .WithSummary("Upload a broadcaster logo")
-            .WithDescription("Adds the image to the broadcaster's logos without selecting it; select it with PATCH /catalog/broadcasters/{id}.")
-            .DisableAntiforgery();
-
         MapDeleteLogo(catalog, "teams", CatalogLogoOwner.Team);
         MapDeleteLogo(catalog, "leagues", CatalogLogoOwner.League);
-        MapDeleteLogo(catalog, "broadcasters", CatalogLogoOwner.Broadcaster);
 
         catalog.MapPost("/teams/{id:int}/logos/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
             Results.Ok(await mediator.Send(new RefreshTeamLogosCommand(id, RefreshExisting: true), ct)))
@@ -157,12 +151,6 @@ public static class CatalogEndpoints
             .WithName("RefreshLeagueLogos")
             .WithSummary("Re-download a league's own logo")
             .WithDescription("Replaces the stored ESPN logo with the current one. Uploaded logos are kept.");
-
-        catalog.MapPost("/broadcasters/{id:int}/logos/refresh", async (int id, IMediator mediator, CancellationToken ct) =>
-            Results.Ok(await mediator.Send(new RefreshBroadcasterLogosCommand(id, RefreshExisting: true), ct)))
-            .WithName("RefreshBroadcasterLogos")
-            .WithSummary("Re-download a broadcaster's logos")
-            .WithDescription("Replaces the stored ESPN logos with the current ones. Uploaded logos are kept.");
 
         catalog.MapPost("/leagues/{id:int}/teams/logos/refresh", (int id) =>
         {
@@ -221,19 +209,4 @@ public static class CatalogEndpoints
 
     public record UpdateTeamRequest(
         bool? IsFollowed, int? SelectedLogoId, string? PrimaryColorHex, string? AlternateColorHex);
-
-    public record UpdateBroadcasterRequest(
-        bool? IsSubscribed,
-        bool SetMapping = false,
-        int? MapsToBroadcasterId = null,
-        string? IptvGuideNumber = null,
-        int? SelectedLogoId = null);
-
-    private static BroadcasterAffiliateFilter? ParseAffiliateFilter(string? value) => value?.ToLowerInvariant() switch
-    {
-        "national" => BroadcasterAffiliateFilter.National,
-        "local" => BroadcasterAffiliateFilter.Local,
-        "other" => BroadcasterAffiliateFilter.Other,
-        _ => null,
-    };
 }

@@ -9,7 +9,8 @@ public class EspnExtractor(EspnLinkResolver linkResolver) : IAdbExtractor
         @"\/id\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public string BroadcasterSlug => "espn";
+    public string ProviderKey => "espn";
+    public string Name => "ESPN";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

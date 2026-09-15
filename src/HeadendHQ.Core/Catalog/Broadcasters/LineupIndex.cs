@@ -55,18 +55,3 @@ public sealed class LineupIndex
         return false;
     }
 }
-
-public static class BroadcasterClassification
-{
-    public static void ClassifyAgainstLineup(Broadcaster broadcaster, LineupIndex lineup)
-    {
-        if (broadcaster.MapsToBroadcasterId is not null || broadcaster.IptvGuideNumber is { Length: > 0 })
-            return;
-
-        var callSign = CallSign.Extract(broadcaster.CallLetters, broadcaster.Slug, broadcaster.Name);
-        broadcaster.SetAffiliate(callSign is not null);
-
-        if (callSign is not null && lineup.GuideNumberFor(callSign) is { } guide)
-            broadcaster.SetMapping(null, guide);
-    }
-}

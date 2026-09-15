@@ -19,6 +19,7 @@ public static class ApiExtensions
         app.MapTitleEndpoints();
         app.MapEventEndpoints();
         app.MapCatalogEndpoints();
+        app.MapStreamingEndpoints();
         app.MapMediaEndpoints();
         app.MapSettingsEndpoints();
     }

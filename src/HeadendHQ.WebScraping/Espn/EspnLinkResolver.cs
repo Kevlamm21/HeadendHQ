@@ -11,8 +11,6 @@ public class EspnLinkResolver : ILinkResolver
         @"""strms"":\[(?:\{[^}]*\},)*?\{[^}]*""id"":""([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})""",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public string BroadcasterSlug => "espn";
-
     public async Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(rawLink))

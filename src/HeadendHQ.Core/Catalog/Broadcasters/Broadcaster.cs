@@ -27,15 +27,7 @@ public class Broadcaster : IEntity<int>, IExternalRef
     public string? CallLetters { get; private set; }
     public BroadcasterKind Kind { get; private set; }
 
-    public string? AndroidPackage { get; private set; }
-
     public bool IsSubscribed { get; private set; }
-
-    public bool IsAffiliate { get; private set; }
-
-    public int? MapsToBroadcasterId { get; private set; }
-
-    public string? IptvGuideNumber { get; private set; }
 
     public DateTimeOffset? DetailFetchedAtUtc { get; private set; }
 
@@ -46,6 +38,8 @@ public class Broadcaster : IEntity<int>, IExternalRef
 
     public List<BroadcasterLogo> Logos { get; private set; } = [];
 
+    public List<StreamingAssignment> StreamingAssignments { get; private set; } = [];
+
     public void Describe(string name, string? shortName, string? callLetters, BroadcasterKind kind)
     {
         Name = name;
@@ -54,40 +48,24 @@ public class Broadcaster : IEntity<int>, IExternalRef
         if (kind is not BroadcasterKind.Unknown) Kind = kind;
     }
 
-    public void Subscribe(bool subscribed) => IsSubscribed = subscribed;
-
-    public void SetAffiliate(bool isAffiliate) => IsAffiliate = isAffiliate;
-
-    public void SetAndroidPackage(string? androidPackage) => AndroidPackage = androidPackage;
-
     public void MarkDetailFetched() => DetailFetchedAtUtc = DateTimeOffset.UtcNow;
 
     public bool NeedsDetail => DetailFetchedAtUtc is null;
 
-    public void SetMapping(int? mapsToBroadcasterId, string? iptvGuideNumber)
+    public void SetStreamingAssignments(IEnumerable<StreamingAssignment> assignments)
     {
-        if (mapsToBroadcasterId == Id)
-            throw new InvalidOperationException($"Broadcaster '{Slug}' cannot map to itself.");
+        var list = assignments.ToList();
 
-        var channel = string.IsNullOrWhiteSpace(iptvGuideNumber) ? null : iptvGuideNumber.Trim();
+        if (list.Where(a => a.StreamingServiceId is not null).GroupBy(a => a.StreamingServiceId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException($"Broadcaster '{Slug}' can be assigned each streaming service only once.");
 
-        if (mapsToBroadcasterId is not null && channel is not null)
-            throw new InvalidOperationException(
-                $"Broadcaster '{Slug}' can map to another broadcaster or an IPTV channel, not both.");
+        if (list.Count(a => a.StreamingServiceId is null) > 1)
+            throw new InvalidOperationException($"Broadcaster '{Slug}' can have only one 'no stream available' assignment.");
 
-        MapsToBroadcasterId = mapsToBroadcasterId;
-        IptvGuideNumber = channel;
+        StreamingAssignments.Clear();
+        StreamingAssignments.AddRange(list);
+        IsSubscribed = StreamingAssignments.Count > 0;
     }
-
-    public void AddAlias(string alias)
-    {
-        if (!Aliases.Contains(alias, StringComparer.OrdinalIgnoreCase))
-            Aliases.Add(alias);
-    }
-
-    public bool Matches(string slug) =>
-        Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)
-        || Aliases.Contains(slug, StringComparer.OrdinalIgnoreCase);
 
     public void TrackSource(string sourceKey, string externalId)
     {
@@ -104,13 +82,4 @@ public class Broadcaster : IEntity<int>, IExternalRef
         Catalog.Logos.StoreFetched(
             Logos, LogoVariants.Default, download, LogoPolicy.Broadcaster,
             f => new BroadcasterLogo(LogoVariants.Default, f.Label, f.ImageId, ImageOrigin.Fetched));
-
-    public BroadcasterLogo AddUploadedLogo(int imageId) =>
-        Catalog.Logos.AddUpload(
-            Logos, LogoVariants.Default, imageId,
-            () => new BroadcasterLogo(LogoVariants.Default, null, imageId, ImageOrigin.Manual));
-
-    public BroadcasterLogo SelectLogo(int logoId) => Catalog.Logos.Select(Logos, logoId);
-
-    public int RemoveLogo(int logoId) => Catalog.Logos.Remove(Logos, logoId, LogoPolicy.Broadcaster);
 }

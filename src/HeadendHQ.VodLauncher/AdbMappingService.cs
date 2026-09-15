@@ -11,7 +11,7 @@ public class AdbMappingService(
     ILogger<AdbMappingService> logger)
 {
     private readonly Dictionary<string, IAdbExtractor> _extractorMap =
-        extractors.ToDictionary(e => e.BroadcasterSlug, StringComparer.OrdinalIgnoreCase);
+        extractors.ToDictionary(e => e.ProviderKey, StringComparer.OrdinalIgnoreCase);
 
     public async Task MapSingleAsync(Guid titleId, CancellationToken ct = default)
     {

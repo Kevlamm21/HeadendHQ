@@ -7,7 +7,8 @@ public class AmazonPrimeExtractor(AmazonPrimeLinkResolver linkResolver) : IAdbEx
 {
     private static readonly Regex IdPattern = new(@"\/detail\/([A-Za-z0-9.\-]+)", RegexOptions.Compiled);
 
-    public string BroadcasterSlug => "prime-video";
+    public string ProviderKey => "prime-video";
+    public string Name => "Prime Video";
 
     public async Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct)
     {

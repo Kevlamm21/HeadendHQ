@@ -1,6 +1,5 @@
 using HeadendHQ.Core.Catalog.Broadcasters.Specifications;
 using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Iptv;
 using HeadendHQ.Core.Shared;
 using Mediator;
 
@@ -19,16 +18,11 @@ public class ResolveBroadcasterHandler(
     {
         var broadcaster = await workspace.LoadSingleOrDefault(new BroadcasterBySlugSpec(command.Slug), ct);
 
-        LineupIndex? lineup = null;
-
         if (broadcaster is null)
         {
             broadcaster = new Broadcaster(command.Slug, command.Name);
             broadcaster.Describe(command.Name, null, null, command.Kind);
             workspace.Add(broadcaster);
-
-            lineup = LineupIndex.Build(await workspace.Load(AllSpecification<IptvChannel>.Instance, ct));
-            BroadcasterClassification.ClassifyAgainstLineup(broadcaster, lineup);
         }
         else
         {
@@ -48,17 +42,8 @@ public class ResolveBroadcasterHandler(
         await unitOfWork.SaveChanges(ct);
 
         var detail = await source.GetBroadcasterAsync(command.ExternalId, ct);
-        if (detail is not null)
-        {
-            if (isCanonical)
-                broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, command.Kind);
-
-            if (isCanonical)
-            {
-                lineup ??= LineupIndex.Build(await workspace.Load(AllSpecification<IptvChannel>.Instance, ct));
-                BroadcasterClassification.ClassifyAgainstLineup(broadcaster, lineup);
-            }
-        }
+        if (detail is not null && isCanonical)
+            broadcaster.Describe(detail.Name, detail.ShortName, detail.CallLetters, command.Kind);
 
         broadcaster.MarkDetailFetched();
 

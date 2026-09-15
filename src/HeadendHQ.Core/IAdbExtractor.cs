@@ -2,6 +2,7 @@ namespace HeadendHQ.Core;
 
 public interface IAdbExtractor
 {
-    string BroadcasterSlug { get; }
+    string ProviderKey { get; }
+    string Name { get; }
     Task<string?> BuildCommandAsync(string? eventUrl, CancellationToken ct);
 }

@@ -10,6 +10,7 @@ using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
+using HeadendHQ.Core.Streaming;
 using HeadendHQ.Core.Titles;
 using HeadendHQ.Core.Titles.CommandHandlers;
 using Mediator;
@@ -24,6 +25,7 @@ public record ImportScheduleResult(int EventsUpserted, int EventsRemoved, List<s
 public class ImportScheduleHandler(
     IEnumerable<IScheduleSource> sources,
     IWorkspace workspace,
+    IReadModel readModel,
     IUnitOfWork unitOfWork,
     IMediator mediator,
     ILogger<ImportScheduleHandler> logger)
@@ -32,7 +34,7 @@ public class ImportScheduleHandler(
     private record KeptEvent(
         ScheduledEventDescriptor Descriptor,
         League League,
-        Broadcaster Broadcaster,
+        IReadOnlyList<(Broadcaster Broadcaster, int Priority)> Broadcasts,
         CompetitorDescriptor Home,
         CompetitorDescriptor Away);
 
@@ -105,8 +107,10 @@ public class ImportScheduleHandler(
 
             try
             {
-                await IngestAsync(source.SourceKey, game, ct);
-                upserted++;
+                if (await IngestAsync(source.SourceKey, game, ct))
+                    upserted++;
+                else
+                    seenExternalIds.Remove(game.Descriptor.ExternalId);
             }
             catch (CatalogSourceThrottledException ex)
             {
@@ -123,7 +127,7 @@ public class ImportScheduleHandler(
             }
         }
 
-        var removed = await ReconcileAsync(source.SourceKey, seenExternalIds, now, ct);
+        var removed = await ReconcileAsync(source.SourceKey, kept.Count > 0, seenExternalIds, now, ct);
         logger.LogInformation(
             "{Source}: {Kept} followed event(s) of {Listed} listed, {Upserted} upserted, {Removed} removed.",
             source.SourceKey, kept.Count, descriptors.Count, upserted, removed);
@@ -148,24 +152,34 @@ public class ImportScheduleHandler(
             if (!filter.IsFollowed(league, descriptor))
                 continue;
 
-            var broadcaster = await ResolveBroadcasterAsync(descriptor, ct);
-            if (broadcaster is null || !broadcaster.IsSubscribed)
-                continue;
-
             var home = descriptor.Competitors.FirstOrDefault(c => c.IsHome);
             var away = descriptor.Competitors.FirstOrDefault(c => !c.IsHome);
             if (home is null || away is null)
                 continue;
 
-            kept.Add(new KeptEvent(descriptor, league, broadcaster, home, away));
+            var broadcasts = await ResolveSubscribedBroadcastsAsync(descriptor, ct);
+            if (broadcasts.Count == 0)
+                continue;
+
+            kept.Add(new KeptEvent(descriptor, league, broadcasts, home, away));
         }
 
         return kept;
     }
 
-    private async Task IngestAsync(string sourceKey, KeptEvent game, CancellationToken ct)
+    private async Task<bool> IngestAsync(string sourceKey, KeptEvent game, CancellationToken ct)
     {
-        var (descriptor, league, broadcaster, home, away) = game;
+        var (descriptor, league, broadcasts, home, away) = game;
+
+        var choice = await StreamingResolver.ResolveAsync(
+            readModel, descriptor.StartUtc, home.DisplayName, away.DisplayName, broadcasts, ct);
+
+        if (choice.Outcome is not StreamingOutcome.Stream)
+        {
+            logger.LogInformation("Skipping {Away} at {Home} ({Id}): {Outcome} via {Broadcaster}.",
+                away.DisplayName, home.DisplayName, descriptor.ExternalId, choice.Outcome, choice.Broadcaster?.Slug);
+            return false;
+        }
 
         var homeTeam = await ResolveTeamAsync(league, home, sourceKey, ct);
         var awayTeam = await ResolveTeamAsync(league, away, sourceKey, ct);
@@ -185,8 +199,8 @@ public class ImportScheduleHandler(
         var startChanged = existing is not null && existing.StartUtc != descriptor.StartUtc;
 
         sportingEvent.SetSchedule(descriptor.StartUtc, null);
-        sportingEvent.SetParticipants(
-            homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName, broadcaster.Id);
+        sportingEvent.SetParticipants(homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName);
+        sportingEvent.AssignStreaming(choice.Broadcaster!.Id, choice.Service!.Id);
         sportingEvent.SetSeason(descriptor.SeasonYear, descriptor.SeasonType);
         sportingEvent.SetWatchUrl(descriptor.WatchUrl);
 
@@ -209,25 +223,25 @@ public class ImportScheduleHandler(
 
         if (sportingEvent.NeedsTitle && LocalDay.IsToday(sportingEvent.StartUtc))
             await mediator.Send(new ProduceTitleForEventCommand(sportingEvent.Id), ct);
+
+        return true;
     }
 
-    private async Task<Broadcaster?> ResolveBroadcasterAsync(
+    private async Task<List<(Broadcaster Broadcaster, int Priority)>> ResolveSubscribedBroadcastsAsync(
         ScheduledEventDescriptor descriptor, CancellationToken ct)
     {
-        Broadcaster? firstKnown = null;
+        var subscribed = new List<(Broadcaster Broadcaster, int Priority)>();
 
-        foreach (var candidate in descriptor.Broadcasts.OrderBy(b => b.Priority))
+        foreach (var candidate in descriptor.Broadcasts)
         {
             var broadcaster = await mediator.Send(new ResolveBroadcasterCommand(
                 candidate.ExternalId, candidate.Slug, candidate.Name, candidate.Kind), ct);
 
             if (broadcaster.IsSubscribed)
-                return broadcaster;
-
-            firstKnown ??= broadcaster;
+                subscribed.Add((broadcaster, candidate.Priority));
         }
 
-        return firstKnown;
+        return subscribed;
     }
 
     private readonly HashSet<int> _logoAttempts = [];
@@ -282,9 +296,9 @@ public class ImportScheduleHandler(
     }
 
     private async Task<int> ReconcileAsync(
-        string sourceKey, HashSet<string> seenExternalIds, DateTime now, CancellationToken ct)
+        string sourceKey, bool anyKept, HashSet<string> seenExternalIds, DateTime now, CancellationToken ct)
     {
-        if (seenExternalIds.Count == 0)
+        if (!anyKept)
         {
             logger.LogWarning("{Source} returned no followed events; skipping reconciliation.", sourceKey);
             return 0;
