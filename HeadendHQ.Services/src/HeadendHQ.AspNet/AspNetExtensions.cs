@@ -46,7 +46,7 @@ public static class AspNetExtensions
         app.MapScalarApiReference(options =>
         {
             options.Title = "HeadendHQ | Api Documentation";
-            options.Favicon = "/favicon.png";
+            options.Favicon = "/favicon.ico";
         });
     }
 }

@@ -1,0 +1,5 @@
+{
+    "appHost": {
+        "path": "HeadendHQ.Services/src/HeadendHQ.AppHost/HeadendHQ.AppHost.csproj"
+    }
+}

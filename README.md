@@ -26,7 +26,7 @@ A self-hosted application for managing media sources for Video On Demand and Liv
 
 ## Local Development
 
-**Prerequisites:** .NET 10 SDK, Node 22 + npm 11, Docker
+**Prerequisites:** .NET 10 SDK, Node 22 + npm 11, Aspire CLI, Docker
 
 | Path | Serves |
 |---|---|
@@ -37,18 +37,15 @@ A self-hosted application for managing media sources for Video On Demand and Liv
 
 In Development the API forwards every non-API request to the Angular dev server (the `ReverseProxy` section in `appsettings.Development.json`, `http://localhost:4200`), so browse to the API's port. In the Docker image the built client is served from `wwwroot`.
 
-```bash
-# Run the client dev server
-cd HeadendHQ.Client
-npm install
-npm start
+`HeadendHQ.AppHost` (Aspire) is the dev startup. It starts the Angular dev server (`client`, port 4200) and the API (`web`, port 7208); browse to `https://localhost:7208`. The Aspire dashboard is at `https://localhost:17178`. The `client` resource has a persistent lifetime, so `ng serve` keeps running after the AppHost stops and is reused on the next run. Stop it from the Aspire dashboard, or kill the `ng serve` process.
 
-# Run the API (separate terminal)
-cd HeadendHQ.Services/src/HeadendHQ.Web
-dotnet run
+```bash
+# Run everything (from the repo root)
+cd HeadendHQ.Client && npm install && cd ..
+aspire run
 
 # Verify health endpoint
-curl http://localhost:5291/api/health
+curl https://localhost:7208/api/health
 
 # Build Docker image
 docker build -t headendhq .
