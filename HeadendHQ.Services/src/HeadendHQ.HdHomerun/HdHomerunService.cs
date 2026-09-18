@@ -23,7 +23,7 @@ public class HdHomerunService(
 
         if (string.IsNullOrWhiteSpace(config.DeviceUrl))
         {
-            logger.LogError("HDHomeRun DeviceUrl is not configured. Set it via PATCH /settings/iptv.");
+            logger.LogError("HDHomeRun DeviceUrl is not configured.");
             return;
         }
 
@@ -66,7 +66,7 @@ public class HdHomerunService(
 
         if (string.IsNullOrWhiteSpace(config.DeviceUrl))
         {
-            logger.LogError("HDHomeRun DeviceUrl is not configured. Set it via PATCH /settings/iptv.");
+            logger.LogError("HDHomeRun DeviceUrl is not configured.");
             return;
         }
 

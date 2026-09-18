@@ -26,15 +26,29 @@ A self-hosted application for managing media sources for Video On Demand and Liv
 
 ## Local Development
 
-**Prerequisites:** .NET 10 SDK, Docker
+**Prerequisites:** .NET 10 SDK, Node 22 + npm 11, Docker
+
+| Path | Serves |
+|---|---|
+| `/` | Angular client (`HeadendHQ.Client`) |
+| `/api/*` | API endpoints (e.g. `/api/iptv/guide`) |
+| `/scalar/v1` | API documentation |
+| `/hangfire` | Background job dashboard |
+
+In Development the API forwards every non-API request to the Angular dev server (the `ReverseProxy` section in `appsettings.Development.json`, `http://localhost:4200`), so browse to the API's port. In the Docker image the built client is served from `wwwroot`.
 
 ```bash
-# Run locally
+# Run the client dev server
+cd HeadendHQ.Client
+npm install
+npm start
+
+# Run the API (separate terminal)
 cd HeadendHQ.Services/src/HeadendHQ.Web
 dotnet run
 
 # Verify health endpoint
-curl http://localhost:5291/health
+curl http://localhost:5291/api/health
 
 # Build Docker image
 docker build -t headendhq .

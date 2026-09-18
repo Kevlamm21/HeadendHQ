@@ -5,7 +5,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class IptvEndpoints
 {
-    public static void MapIptvEndpoints(this WebApplication app)
+    public static void MapIptvEndpoints(this RouteGroupBuilder app)
     {
         var iptv = app.MapGroup("/iptv").WithTags("IPTV");
 

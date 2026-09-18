@@ -8,7 +8,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class SettingsEndpoints
 {
-    public static IEndpointRouteBuilder MapSettingsEndpoints(this IEndpointRouteBuilder app)
+    public static void MapSettingsEndpoints(this RouteGroupBuilder app)
     {
         var group = app.MapGroup("/settings").WithTags("Settings");
 
@@ -71,7 +71,5 @@ public static class SettingsEndpoints
             .WithName("UpdateIptvSettings")
             .WithSummary("Update IPTV device settings")
             .WithDescription("Partially updates the IPTV device settings. Only non-null fields are applied.");
-
-        return app;
     }
 }

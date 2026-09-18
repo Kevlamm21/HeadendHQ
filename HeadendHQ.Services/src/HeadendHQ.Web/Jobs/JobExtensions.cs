@@ -3,13 +3,13 @@ using HeadendHQ.Web.Jobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeadendHQ.Web.Infrastructure;
+namespace HeadendHQ.Web.Jobs;
 
-public static class WebExtensions
+public static class JobExtensions
 {
     private const string DefaultNightlySchedule = "0 6 * * *";
 
-    public static void ConfigureWeb(this WebApplicationBuilder builder)
+    public static void ConfigureJobs(this WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<NightlyJob>();
         builder.Services.AddScoped<CatalogSeedJob>();

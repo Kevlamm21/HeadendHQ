@@ -5,7 +5,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class StreamingEndpoints
 {
-    public static void MapStreamingEndpoints(this WebApplication app)
+    public static void MapStreamingEndpoints(this RouteGroupBuilder app)
     {
         var streaming = app.MapGroup("/streaming-services").WithTags("Streaming Services");
 

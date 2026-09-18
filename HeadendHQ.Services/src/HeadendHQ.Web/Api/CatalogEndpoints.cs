@@ -14,7 +14,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class CatalogEndpoints
 {
-    public static void MapCatalogEndpoints(this WebApplication app)
+    public static void MapCatalogEndpoints(this RouteGroupBuilder app)
     {
         var catalog = app.MapGroup("/catalog").WithTags("Sports Catalog");
 

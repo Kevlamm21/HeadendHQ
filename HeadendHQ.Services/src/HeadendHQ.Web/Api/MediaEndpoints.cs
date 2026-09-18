@@ -6,7 +6,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class MediaEndpoints
 {
-    public static void MapMediaEndpoints(this WebApplication app)
+    public static void MapMediaEndpoints(this RouteGroupBuilder app)
     {
         app.MapGet("/media/images/{id:int}", async (int id, HttpContext http, IMediator mediator, CancellationToken ct) =>
         {

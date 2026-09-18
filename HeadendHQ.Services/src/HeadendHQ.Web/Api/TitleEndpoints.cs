@@ -7,7 +7,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class TitleEndpoints
 {
-    public static void MapTitleEndpoints(this WebApplication app)
+    public static void MapTitleEndpoints(this RouteGroupBuilder app)
     {
         app.MapGet("/titles", async (
             IMediator mediator,
@@ -38,7 +38,7 @@ public static class TitleEndpoints
         app.MapPost("/titles", async (TitleRequest request, IMediator mediator, CancellationToken ct) =>
         {
             var title = await mediator.Send(new CreateTitleCommand(request), ct);
-            return Results.Created($"/titles/{title.Id}", title);
+            return Results.Created($"/api/titles/{title.Id}", title);
         })
         .WithTags("Titles")
         .WithName("CreateTitle")

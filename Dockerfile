@@ -1,3 +1,10 @@
+FROM node:22 AS client
+WORKDIR /client
+COPY HeadendHQ.Client/package.json HeadendHQ.Client/package-lock.json ./
+RUN npm install -g npm@11.19.1 && npm ci
+COPY HeadendHQ.Client/ .
+RUN npm run build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
@@ -40,5 +47,6 @@ COPY --from=build /pw-browsers /pw-browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/pw-browsers
 
 COPY --from=build /app/publish .
+COPY --from=client /client/dist/HeadendHQ.Client/browser ./wwwroot
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "HeadendHQ.Web.dll"]

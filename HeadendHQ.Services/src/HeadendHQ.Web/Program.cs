@@ -7,7 +7,8 @@ using HeadendHQ.Mediator;
 using HeadendHQ.Nfo;
 using HeadendHQ.SixLabors;
 using HeadendHQ.VodLauncher;
-using HeadendHQ.Web.Infrastructure;
+using HeadendHQ.Web.Api;
+using HeadendHQ.Web.Jobs;
 using HeadendHQ.WebScraping;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,7 +29,9 @@ builder.ConfigureWebScraping();
 builder.ConfigureVodLauncher();
 builder.ConfigureFFmpeg();
 builder.ConfigureSixLabors();
-builder.ConfigureWeb();
+builder.ConfigureJobs();
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 builder.ConfigureHangfire();
 
 var app = builder.Build();
@@ -39,5 +42,7 @@ app.UseAspNet();
 app.UseHangfireDashboard();
 app.UseJobs(freshDatabase);
 app.MapApi();
+app.MapReverseProxy();
+app.MapFallbackToFile("index.html");
 
 app.Run();

@@ -26,6 +26,20 @@ jobs:
       - name: Build
         run: dotnet build HeadendHQ.Services/src/HeadendHQ.Web/HeadendHQ.Web.csproj -c Release
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: HeadendHQ.Client/package-lock.json
+
+      - name: Build client
+        working-directory: HeadendHQ.Client
+        run: |
+          npm install -g npm@11.19.1
+          npm ci
+          npm run build
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:

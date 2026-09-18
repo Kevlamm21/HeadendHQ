@@ -9,4 +9,6 @@ Dockerfile
 README.md
 LICENSE
 CLAUDE.md
-HeadendHQ.Client
+**/node_modules
+**/.angular
+**/dist

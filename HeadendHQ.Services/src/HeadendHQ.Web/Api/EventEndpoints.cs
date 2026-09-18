@@ -5,7 +5,7 @@ namespace HeadendHQ.Web.Api;
 
 public static class EventEndpoints
 {
-    public static void MapEventEndpoints(this WebApplication app)
+    public static void MapEventEndpoints(this RouteGroupBuilder app)
     {
         var events = app.MapGroup("/events").WithTags("Sporting Events");
 
