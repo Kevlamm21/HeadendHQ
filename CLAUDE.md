@@ -5,8 +5,10 @@ HeadendHQ is a self-hosted ASP.NET Core Web API (.NET 10) running as a single Do
 
 ## Repo Structure
 HeadendHQ/                  ← repo root
-├── src/              ← .NET projects
-├── HeadendHQ.sln
+├── HeadendHQ.Services/     ← backend
+│   ├── src/                ← .NET projects
+│   └── HeadendHQ.sln
+├── HeadendHQ.Client/       ← custom client
 ├── Dockerfile
 ├── .github/workflows/
 ├── CLAUDE.md

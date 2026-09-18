@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build
-        run: dotnet build src/HeadendHQ.Web/HeadendHQ.Web.csproj -c Release
+        run: dotnet build HeadendHQ.Services/src/HeadendHQ.Web/HeadendHQ.Web.csproj -c Release
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

@@ -30,7 +30,7 @@ A self-hosted application for managing media sources for Video On Demand and Liv
 
 ```bash
 # Run locally
-cd src/HeadendHQ.Web
+cd HeadendHQ.Services/src/HeadendHQ.Web
 dotnet run
 
 # Verify health endpoint

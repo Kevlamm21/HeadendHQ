@@ -1,24 +1,24 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["src/HeadendHQ.Web/HeadendHQ.Web.csproj", "src/HeadendHQ.Web/"]
-COPY ["src/HeadendHQ.AspNet/HeadendHQ.AspNet.csproj", "src/HeadendHQ.AspNet/"]
-COPY ["src/HeadendHQ.Core/HeadendHQ.Core.csproj", "src/HeadendHQ.Core/"]
-COPY ["src/HeadendHQ.Data/HeadendHQ.Data.csproj", "src/HeadendHQ.Data/"]
-COPY ["src/HeadendHQ.Mediator/HeadendHQ.Mediator.csproj", "src/HeadendHQ.Mediator/"]
-COPY ["src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj", "src/HeadendHQ.HdHomerun/"]
-COPY ["src/HeadendHQ.Nfo/HeadendHQ.Nfo.csproj", "src/HeadendHQ.Nfo/"]
-COPY ["src/HeadendHQ.SixLabors/HeadendHQ.SixLabors.csproj", "src/HeadendHQ.SixLabors/"]
-COPY ["src/HeadendHQ.FFmpeg/HeadendHQ.FFmpeg.csproj", "src/HeadendHQ.FFmpeg/"]
-COPY ["src/HeadendHQ.VodLauncher/HeadendHQ.VodLauncher.csproj", "src/HeadendHQ.VodLauncher/"]
-COPY ["src/HeadendHQ.Hangfire/HeadendHQ.Hangfire.csproj", "src/HeadendHQ.Hangfire/"]
-COPY ["src/HeadendHQ.WebScraping/HeadendHQ.WebScraping.csproj", "src/HeadendHQ.WebScraping/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Web/HeadendHQ.Web.csproj", "HeadendHQ.Services/src/HeadendHQ.Web/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.AspNet/HeadendHQ.AspNet.csproj", "HeadendHQ.Services/src/HeadendHQ.AspNet/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Core/HeadendHQ.Core.csproj", "HeadendHQ.Services/src/HeadendHQ.Core/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Data/HeadendHQ.Data.csproj", "HeadendHQ.Services/src/HeadendHQ.Data/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Mediator/HeadendHQ.Mediator.csproj", "HeadendHQ.Services/src/HeadendHQ.Mediator/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.HdHomerun/HeadendHQ.HdHomerun.csproj", "HeadendHQ.Services/src/HeadendHQ.HdHomerun/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Nfo/HeadendHQ.Nfo.csproj", "HeadendHQ.Services/src/HeadendHQ.Nfo/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.SixLabors/HeadendHQ.SixLabors.csproj", "HeadendHQ.Services/src/HeadendHQ.SixLabors/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.FFmpeg/HeadendHQ.FFmpeg.csproj", "HeadendHQ.Services/src/HeadendHQ.FFmpeg/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.VodLauncher/HeadendHQ.VodLauncher.csproj", "HeadendHQ.Services/src/HeadendHQ.VodLauncher/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.Hangfire/HeadendHQ.Hangfire.csproj", "HeadendHQ.Services/src/HeadendHQ.Hangfire/"]
+COPY ["HeadendHQ.Services/src/HeadendHQ.WebScraping/HeadendHQ.WebScraping.csproj", "HeadendHQ.Services/src/HeadendHQ.WebScraping/"]
 
-RUN dotnet restore "src/HeadendHQ.Web/HeadendHQ.Web.csproj"
+RUN dotnet restore "HeadendHQ.Services/src/HeadendHQ.Web/HeadendHQ.Web.csproj"
 
 COPY . .
 
-WORKDIR "/src/src/HeadendHQ.Web"
+WORKDIR "/src/HeadendHQ.Services/src/HeadendHQ.Web"
 RUN dotnet publish "HeadendHQ.Web.csproj" -c Release -o /app/publish --no-restore
 
 # Download Playwright Chromium browser into a known path
