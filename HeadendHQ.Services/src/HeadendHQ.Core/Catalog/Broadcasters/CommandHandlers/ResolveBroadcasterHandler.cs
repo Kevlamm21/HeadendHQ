@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.Broadcasters.Specifications;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Shared;
 using Mediator;
 

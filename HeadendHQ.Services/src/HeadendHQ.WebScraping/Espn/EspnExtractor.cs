@@ -3,7 +3,7 @@ using HeadendHQ.Core;
 
 namespace HeadendHQ.WebScraping.Espn;
 
-public class EspnExtractor(EspnLinkResolver linkResolver) : IAdbExtractor
+internal sealed class EspnExtractor(EspnLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex UuidPattern = new(
         @"\/id\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",

@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
 
 namespace HeadendHQ.Core.Events;
 
@@ -49,8 +48,8 @@ public static class CastRanker
         "Out", "Injured Reserve", "Suspension",
     };
 
-    public static IReadOnlyList<CastCandidate> Rank(
-        IEnumerable<CastCandidate> candidates, string sportSlug, int maxPerTeam)
+    public static IReadOnlyList<CastRequest> Rank(
+        IEnumerable<CastRequest> candidates, string sportSlug, int maxPerTeam)
     {
         var scored = candidates
             .DistinctBy(c => c.Athlete.ExternalId)
@@ -63,8 +62,8 @@ public static class CastRanker
         return [.. Interleave(home, away)];
     }
 
-    private static List<CastCandidate> Top(
-        List<(CastCandidate Candidate, int Score)> scored, bool isHome, int maxPerTeam) =>
+    private static List<CastRequest> Top(
+        List<(CastRequest Candidate, int Score)> scored, bool isHome, int maxPerTeam) =>
         [.. scored
             .Where(s => s.Candidate.IsHome == isHome)
             .OrderByDescending(s => s.Score)
@@ -73,7 +72,7 @@ public static class CastRanker
             .Take(maxPerTeam)
             .Select(s => s.Candidate)];
 
-    public static int Score(CastCandidate candidate, string sportSlug)
+    public static int Score(CastRequest candidate, string sportSlug)
     {
         var athlete = candidate.Athlete;
         var score = PositionWeight(sportSlug, athlete.Position);
@@ -84,7 +83,7 @@ public static class CastRanker
         if (candidate.IsListedStarter)
             score += StarterScore;
         else
-            score += candidate.DepthRank switch
+            score += athlete.DepthRank switch
             {
                 1 => StarterScore,
                 2 => SecondStringScore,
@@ -93,7 +92,7 @@ public static class CastRanker
             };
 
         score += Math.Min(athlete.ExperienceYears ?? 0, MaxExperienceBonus);
-        score -= InjuryPenalty(candidate.InjuryStatus);
+        score -= InjuryPenalty(athlete.InjuryStatus);
 
         return score;
     }

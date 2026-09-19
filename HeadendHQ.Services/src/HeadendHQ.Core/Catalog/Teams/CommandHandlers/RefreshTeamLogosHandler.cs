@@ -1,6 +1,5 @@
 using HeadendHQ.Core.Catalog.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
@@ -31,9 +30,9 @@ public class RefreshTeamLogosHandler(
 
         var league = await workspace.LoadById<League, int>(team.LeagueId, ct);
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
-        var key = new LeagueKey(sport.Slug, league.Slug, league.ExternalIdFor(source.SourceKey));
+        var key = new LeagueKey(sport.Slug, league.Slug);
 
-        IReadOnlyList<ImageCandidate> candidates;
+        IReadOnlyList<LogoRequest> candidates;
         try
         {
             candidates = await source.GetTeamLogosAsync(new TeamKey(key, externalId), ct);

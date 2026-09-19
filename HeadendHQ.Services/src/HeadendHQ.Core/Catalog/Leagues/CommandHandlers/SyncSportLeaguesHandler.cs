@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports.Specifications;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Settings;

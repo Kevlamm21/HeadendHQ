@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.CommandHandlers;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
@@ -27,7 +26,7 @@ public class RefreshLeagueLogosHandler(
 
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
 
-        LeagueDescriptor? descriptor;
+        LeagueRequest? descriptor;
         try
         {
             descriptor = await source.GetLeagueAsync(sport.Slug, league.Slug, ct);

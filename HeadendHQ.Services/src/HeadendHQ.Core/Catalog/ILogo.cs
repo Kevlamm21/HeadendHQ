@@ -21,6 +21,8 @@ public interface ILogo
     void Select(bool selected);
 }
 
+public record LogoRequest(string Label, string Url);
+
 public record FetchedLogo(string Label, int ImageId);
 
 public static class Logos

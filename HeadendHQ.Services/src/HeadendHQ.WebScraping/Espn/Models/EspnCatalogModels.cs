@@ -12,10 +12,7 @@ internal record EspnRef([property: JsonPropertyName("$ref")] string? Ref);
 
 internal record EspnLogo(
     [property: JsonPropertyName("href")] string Href,
-    [property: JsonPropertyName("rel")] List<string>? Rel,
-    [property: JsonPropertyName("width")] int? Width,
-    [property: JsonPropertyName("height")] int? Height,
-    [property: JsonPropertyName("lastUpdated")] DateTimeOffset? LastUpdated);
+    [property: JsonPropertyName("rel")] List<string>? Rel);
 
 internal record EspnSportDetail(
     [property: JsonPropertyName("id")] string? Id,

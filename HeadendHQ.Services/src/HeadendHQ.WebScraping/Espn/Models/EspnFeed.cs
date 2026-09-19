@@ -13,7 +13,6 @@ internal record EspnEvent(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("date")] string Date,
     [property: JsonPropertyName("name")] string? Name,
-    [property: JsonPropertyName("sport")] EspnSportRef Sport,
     [property: JsonPropertyName("league")] EspnLeagueRef League,
     [property: JsonPropertyName("competitors")] List<EspnCompetitor> Competitors,
     [property: JsonPropertyName("watch")] EspnWatch? Watch,
@@ -22,17 +21,11 @@ internal record EspnEvent(
 
 internal record EspnFeedSeason(
     [property: JsonPropertyName("year")] int? Year,
-    [property: JsonPropertyName("type")] int? Type,
-    [property: JsonPropertyName("slug")] string? Slug
-);
-
-internal record EspnSportRef(
-    [property: JsonPropertyName("slug")] string Slug
+    [property: JsonPropertyName("type")] int? Type
 );
 
 internal record EspnLeagueRef(
-    [property: JsonPropertyName("slug")] string Slug,
-    [property: JsonPropertyName("id")] string? Id
+    [property: JsonPropertyName("slug")] string Slug
 );
 
 internal record EspnCompetitor(
@@ -61,16 +54,11 @@ internal record EspnWatchStyle(
 internal record EspnBroadcast(
     [property: JsonPropertyName("media")] EspnMedia Media,
     [property: JsonPropertyName("type")] EspnBroadcastType? Type,
-    [property: JsonPropertyName("market")] EspnBroadcastMarket? Market,
     [property: JsonPropertyName("priority")] int? Priority
 );
 
 internal record EspnBroadcastType(
     [property: JsonPropertyName("slug")] string? Slug
-);
-
-internal record EspnBroadcastMarket(
-    [property: JsonPropertyName("type")] string? Type
 );
 
 internal record EspnMedia(

@@ -1,8 +1,8 @@
-using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core;
 
-namespace HeadendHQ.WebScraping.Espn.Transport;
+namespace HeadendHQ.WebScraping.Transport;
 
-internal sealed class EspnImageFetcher(EspnTransport transport) : IImageFetcher
+internal sealed class WebImageFetcher(WebTransport transport) : IImageFetcher
 {
     public async Task<FetchedImage?> FetchAsync(
         string url, string? etag, DateTimeOffset? lastModifiedUtc, CancellationToken ct)
@@ -12,10 +12,8 @@ internal sealed class EspnImageFetcher(EspnTransport transport) : IImageFetcher
         if (response is null)
             return null;
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-
         return new FetchedImage(
-            bytes,
+            await response.Content.ReadAsByteArrayAsync(ct),
             response.Content.Headers.ContentType?.MediaType ?? "image/png",
             response.Headers.ETag?.ToString(),
             response.Content.Headers.LastModified);

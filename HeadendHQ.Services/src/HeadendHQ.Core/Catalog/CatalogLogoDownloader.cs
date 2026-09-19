@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Media.CommandHandlers;
 using Mediator;
@@ -15,7 +14,7 @@ public record LogoDownload(IReadOnlyList<FetchedLogo> Stored, IReadOnlyCollectio
 public static class CatalogLogoDownloader
 {
     public static async Task<LogoDownload> DownloadAsync(
-        IMediator mediator, LogoPolicy policy, IEnumerable<ImageCandidate>? candidates, ImagePurpose purpose,
+        IMediator mediator, LogoPolicy policy, IEnumerable<LogoRequest>? candidates, ImagePurpose purpose,
         bool revalidate, CancellationToken ct, int? leagueId = null)
     {
         var chosen = policy.Choose(candidates);

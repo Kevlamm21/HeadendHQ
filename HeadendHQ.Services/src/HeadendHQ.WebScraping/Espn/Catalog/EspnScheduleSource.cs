@@ -1,33 +1,34 @@
 using System.Text.Json;
-using HeadendHQ.Core.Catalog.Broadcasters;
-using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core;
 using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Broadcasters;
+using HeadendHQ.Core.Events;
 using HeadendHQ.WebScraping.Espn.Models;
 using HeadendHQ.WebScraping.Espn.Transport;
+using HeadendHQ.WebScraping.Transport;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
 internal sealed class EspnScheduleSource(
-    EspnTransport transport,
+    WebTransport transport,
     ILogger<EspnScheduleSource> logger) : IScheduleSource
 {
     private const int PageSize = 50;
 
     public string SourceKey => SourceKeys.Espn;
 
-    public async Task<IReadOnlyList<ScheduledEventDescriptor>> GetEventsAsync(
+    public async Task<IReadOnlyList<SportingEventRequest>> GetEventsAsync(
         ScheduleQuery query, CancellationToken ct)
     {
         var leagues = query.LeagueSlugs.Count > 0 ? string.Join(",", query.LeagueSlugs) : null;
-        const string? watch = null;
 
-        var events = new List<ScheduledEventDescriptor>();
+        var events = new List<SportingEventRequest>();
         var seen = new HashSet<string>();
 
         for (var date = query.From; date <= query.To; date = date.AddDays(1))
         {
-            foreach (var espnEvent in await FetchDayAsync(date, leagues, watch, ct))
+            foreach (var espnEvent in await FetchDayAsync(date, leagues, ct))
             {
                 if (!seen.Add(espnEvent.Id))
                     continue;
@@ -44,7 +45,7 @@ internal sealed class EspnScheduleSource(
     }
 
     private async Task<List<EspnEvent>> FetchDayAsync(
-        DateOnly date, string? leagues, string? watch, CancellationToken ct)
+        DateOnly date, string? leagues, CancellationToken ct)
     {
         var results = new List<EspnEvent>();
         var stamp = date.ToString("yyyyMMdd");
@@ -54,7 +55,7 @@ internal sealed class EspnScheduleSource(
             ct.ThrowIfCancellationRequested();
 
             var json = await transport.GetStringAsync(
-                EspnEndpoints.GuideFeed(stamp, page, PageSize, leagues, watch), ct);
+                EspnEndpoints.GuideFeed(stamp, page, PageSize, leagues), ct);
 
             var root = JsonSerializer.Deserialize<EspnFeedRoot>(json);
             if (root is null)
@@ -70,16 +71,18 @@ internal sealed class EspnScheduleSource(
         return results;
     }
 
-    private static ScheduledEventDescriptor? Convert(EspnEvent espnEvent)
+    private static SportingEventRequest? Convert(EspnEvent espnEvent)
     {
         if (!DateTimeOffset.TryParse(espnEvent.Date, out var start))
             return null;
 
         var competitors = espnEvent.Competitors
-            .Select(c => new CompetitorDescriptor(
+            .Select(c => new CompetitorRequest(
                 c.Team.Id,
                 c.Team.DisplayName,
                 IsHome: string.Equals(c.HomeAway, "home", StringComparison.OrdinalIgnoreCase),
+                PrimaryColorHex: c.Team.Color,
+                AlternateColorHex: c.Team.AlternateColor,
                 Logos: ToCandidates(c.Team.Logos)))
             .ToList();
 
@@ -88,13 +91,12 @@ internal sealed class EspnScheduleSource(
 
         var broadcasts = (espnEvent.Watch?.Broadcasts ?? [])
             .Where(b => !string.IsNullOrEmpty(b.Media.Slug))
-            .Select(b => new BroadcastCandidate(
+            .Select(b => new BroadcastRequest(
                 ExternalId: b.Media.Id ?? b.Media.Slug!,
                 Slug: b.Media.Slug!,
                 Name: b.Media.Name ?? b.Media.Slug!,
                 Kind: ToKind(b.Type?.Slug),
-                Priority: b.Priority ?? 0,
-                Market: b.Market?.Type))
+                Priority: b.Priority ?? 0))
             .DistinctBy(b => b.Slug)
             .ToList();
 
@@ -102,11 +104,9 @@ internal sealed class EspnScheduleSource(
             ? espnEvent.Watch.Style.Link
             : null;
 
-        return new ScheduledEventDescriptor(
+        return new SportingEventRequest(
             ExternalId: espnEvent.Id,
-            SportSlug: espnEvent.Sport.Slug,
             LeagueSlug: espnEvent.League.Slug,
-            LeagueExternalId: espnEvent.League.Id,
             StartUtc: start.UtcDateTime,
             Name: espnEvent.Name,
             Competitors: competitors,
@@ -123,10 +123,9 @@ internal sealed class EspnScheduleSource(
         _ => BroadcasterKind.Unknown,
     };
 
-    private static IReadOnlyList<ImageCandidate>? ToCandidates(List<EspnLogo>? logos) =>
+    private static IReadOnlyList<LogoRequest>? ToCandidates(List<EspnLogo>? logos) =>
         logos is null ? null
         : [.. logos
             .Where(l => !string.IsNullOrEmpty(l.Href))
-            .Select(l => new ImageCandidate(
-                LogoRels.Normalize(l.Rel ?? []), l.Href, l.Width, l.Height, l.LastUpdated))];
+            .Select(l => new LogoRequest(LogoRels.Normalize(l.Rel ?? []), l.Href))];
 }

@@ -1,30 +1,35 @@
 using System.Text.Json;
-using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core;
 using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Broadcasters;
+using HeadendHQ.Core.Catalog.Leagues;
+using HeadendHQ.Core.Catalog.Sports;
+using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.WebScraping.Espn.Models;
 using HeadendHQ.WebScraping.Espn.Transport;
+using HeadendHQ.WebScraping.Transport;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
-internal sealed class EspnSportsCatalogSource(
-    EspnTransport transport,
-    ILogger<EspnSportsCatalogSource> logger) : ISportsCatalogSource
+internal sealed class EspnCatalogSource(
+    WebTransport transport,
+    ILogger<EspnCatalogSource> logger) : ISportsCatalogSource, IBroadcasterCatalogSource
 {
     private static readonly HashSet<string> IndividualSports =
         new(StringComparer.OrdinalIgnoreCase) { "golf", "tennis", "mma", "racing" };
 
     public string SourceKey => SourceKeys.Espn;
 
-    public async Task<IReadOnlyList<SportDescriptor>> GetSportsAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<SportRequest>> GetSportsAsync(CancellationToken ct)
     {
         var slugs = await GetRefSlugsAsync(EspnEndpoints.Sports(), ct);
-        var sports = new List<SportDescriptor>();
+        var sports = new List<SportRequest>();
 
         foreach (var slug in slugs)
         {
             var detail = await TryGetAsync<EspnSportDetail>(EspnEndpoints.Sport(slug), ct);
-            sports.Add(new SportDescriptor(
+            sports.Add(new SportRequest(
                 detail?.Id ?? slug,
                 slug,
                 Coalesce(detail?.DisplayName, detail?.Name) ?? Humanize(slug)));
@@ -33,10 +38,10 @@ internal sealed class EspnSportsCatalogSource(
         return sports;
     }
 
-    public async Task<IReadOnlyList<LeagueDescriptor>> GetLeaguesAsync(string sportSlug, CancellationToken ct)
+    public async Task<IReadOnlyList<LeagueRequest>> GetLeaguesAsync(string sportSlug, CancellationToken ct)
     {
         var slugs = await GetRefSlugsAsync(EspnEndpoints.Leagues(sportSlug), ct);
-        var leagues = new List<LeagueDescriptor>();
+        var leagues = new List<LeagueRequest>();
 
         foreach (var slug in slugs)
         {
@@ -49,14 +54,14 @@ internal sealed class EspnSportsCatalogSource(
         return leagues;
     }
 
-    public async Task<LeagueDescriptor?> GetLeagueAsync(string sportSlug, string leagueSlug, CancellationToken ct)
+    public async Task<LeagueRequest?> GetLeagueAsync(string sportSlug, string leagueSlug, CancellationToken ct)
     {
         var detail = await TryGetAsync<EspnLeagueDetail>(EspnEndpoints.League(sportSlug, leagueSlug), ct);
 
         return detail is null ? null : ToLeague(sportSlug, leagueSlug, detail);
     }
 
-    private static LeagueDescriptor ToLeague(string sportSlug, string slug, EspnLeagueDetail? detail) =>
+    private static LeagueRequest ToLeague(string sportSlug, string slug, EspnLeagueDetail? detail) =>
         new(
             ExternalId: detail?.Id ?? slug,
             Slug: slug,
@@ -66,7 +71,7 @@ internal sealed class EspnSportsCatalogSource(
             SupportsTeams: !IndividualSports.Contains(sportSlug),
             Logos: ToCandidates(detail?.Logos));
 
-    public async Task<IReadOnlyList<TeamDescriptor>> GetTeamsAsync(LeagueKey league, CancellationToken ct)
+    public async Task<IReadOnlyList<TeamRequest>> GetTeamsAsync(LeagueKey league, CancellationToken ct)
     {
         var json = await transport.GetStringAsync(
             EspnEndpoints.Teams(league.SportSlug, league.LeagueSlug), ct);
@@ -75,7 +80,7 @@ internal sealed class EspnSportsCatalogSource(
 
         return [.. response!.Teams
             .Where(t => t.Id is not null)
-            .Select(t => new TeamDescriptor(
+            .Select(t => new TeamRequest(
                 ExternalId: t.Id!,
                 DisplayName: t.DisplayName ?? t.Name ?? t.Slug ?? t.Id!,
                 ShortDisplayName: t.ShortDisplayName,
@@ -86,14 +91,10 @@ internal sealed class EspnSportsCatalogSource(
                 PrimaryColorHex: t.Color,
                 AlternateColorHex: t.AlternateColor,
                 IsActive: t.IsActive ?? true,
-                // The bulk listing once handed each NFL team the previous team's guid-addressed logos, so these
-                // were filtered out and re-sourced per team. That no longer reproduces; restore the filter
-                // (and the VerifyLogosAsync call in DownloadLeagueTeamLogosHandler) if it comes back.
-                // Logos: ToCandidates(t.Logos, GuidAddressed, keep: false)))];
                 Logos: ToCandidates(t.Logos)))];
     }
 
-    public async Task<IReadOnlyList<ImageCandidate>> GetTeamLogosAsync(TeamKey team, CancellationToken ct)
+    public async Task<IReadOnlyList<LogoRequest>> GetTeamLogosAsync(TeamKey team, CancellationToken ct)
     {
         var detail = await TryGetAsync<EspnTeamDetail>(
             EspnEndpoints.Team(team.League.SportSlug, team.League.LeagueSlug, team.TeamExternalId), ct);
@@ -101,49 +102,75 @@ internal sealed class EspnSportsCatalogSource(
         return ToCandidates(detail?.Logos, GuidAddressed, keep: true) ?? [];
     }
 
-    public async Task<IReadOnlyList<AthleteDescriptor>> GetRosterAsync(TeamKey team, CancellationToken ct)
+    public async Task<IReadOnlyList<string>> ListBroadcasterIdsAsync(CancellationToken ct)
     {
-        try
-        {
-            var json = await transport.GetStringAsync(
-                EspnEndpoints.Roster(team.League.SportSlug, team.League.LeagueSlug, team.TeamExternalId), ct);
+        var ids = new List<string>();
+        var seen = new HashSet<string>();
 
-            return [.. EspnRoster.FlattenActiveAthletes(json)
-                .Where(a => !string.IsNullOrEmpty(a.Id))
-                .Select(a => new AthleteDescriptor(
-                    ExternalId: a.Id,
-                    DisplayName: a.DisplayName ?? "Unknown",
-                    ShortName: a.ShortName,
-                    Position: a.Position?.Abbreviation ?? a.Position?.DisplayName,
-                    Jersey: a.Jersey,
-                    ExperienceYears: a.Experience?.Years,
-                    HeadshotUrl: a.Headshot?.Href,
-                    TeamExternalId: team.TeamExternalId))];
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
+        for (var page = 1; ; page++)
         {
-            logger.LogWarning(ex, "Failed to fetch {League} roster for team {TeamId}.",
-                team.League.LeagueSlug, team.TeamExternalId);
-            return [];
+            ct.ThrowIfCancellationRequested();
+
+            var json = await transport.GetStringAsync(EspnEndpoints.MediaIndex(page), ct);
+            var list = JsonSerializer.Deserialize<EspnRefList>(json);
+
+            foreach (var item in list?.Items ?? [])
+            {
+                if (string.IsNullOrEmpty(item.Ref))
+                    continue;
+
+                var id = EspnRefs.LastSegment(item.Ref);
+                if (id.Length > 0 && id.All(char.IsDigit) && seen.Add(id))
+                    ids.Add(id);
+            }
+
+            if (list is null || list.Items is null or { Count: 0 } || page >= list.PageCount)
+                break;
         }
+
+        logger.LogInformation("ESPN media index: {Count} broadcaster id(s).", ids.Count);
+        return ids;
     }
 
-    public async Task<IReadOnlyDictionary<string, int>> GetDepthChartAsync(
-        TeamKey team, int seasonYear, CancellationToken ct) =>
-        await EspnDepthChart.FetchAsync(
-            transport, team.League.SportSlug, team.League.LeagueSlug, team.TeamExternalId, seasonYear, logger, ct);
+    public async Task<BroadcasterRequest?> GetBroadcasterAsync(string externalId, CancellationToken ct)
+    {
+        if (await TryGetAsync<EspnMediaDetail>(EspnEndpoints.Media(externalId), ct) is not { Slug: not null } media)
+            return null;
+
+        return new BroadcasterRequest(
+            ExternalId: media.Id ?? externalId,
+            Slug: media.Slug,
+            Name: media.Name ?? media.Slug,
+            ShortName: media.ShortName,
+            CallLetters: media.CallLetters,
+            Logos: ToCandidates(media.Logos));
+    }
 
     private async Task<IReadOnlyList<string>> GetRefSlugsAsync(string url, CancellationToken ct)
     {
-        var json = await transport.GetStringAsync(url, ct);
-        var list = JsonSerializer.Deserialize<EspnRefList>(json);
+        var slugs = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return [.. (list?.Items ?? [])
-            .Select(i => i.Ref)
-            .Where(r => !string.IsNullOrEmpty(r))
-            .Select(r => EspnRefs.LastSegment(r!))
-            .Where(s => s.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)];
+        for (var page = 1; ; page++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var paged = page == 1 ? url : $"{url}&page={page}";
+            var list = JsonSerializer.Deserialize<EspnRefList>(await transport.GetStringAsync(paged, ct));
+
+            foreach (var slug in (list?.Items ?? [])
+                         .Select(i => i.Ref)
+                         .Where(r => !string.IsNullOrEmpty(r))
+                         .Select(r => EspnRefs.LastSegment(r!))
+                         .Where(s => s.Length > 0))
+                if (seen.Add(slug))
+                    slugs.Add(slug);
+
+            if (list is null || list.Items is null or { Count: 0 } || page >= list.PageCount)
+                break;
+        }
+
+        return slugs;
     }
 
     private async Task<T?> TryGetAsync<T>(string url, CancellationToken ct)
@@ -152,7 +179,7 @@ internal sealed class EspnSportsCatalogSource(
         {
             return JsonSerializer.Deserialize<T>(await transport.GetStringAsync(url, ct));
         }
-        catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
+        catch (Exception ex) when (ex is not OperationCanceledException and not CatalogSourceThrottledException)
         {
             logger.LogWarning(ex, "Failed to read {Url}; continuing.", url);
             return default;
@@ -162,14 +189,13 @@ internal sealed class EspnSportsCatalogSource(
     private static bool GuidAddressed(EspnLogo logo) =>
         logo.Href.Contains("/guid/", StringComparison.OrdinalIgnoreCase);
 
-    private static IReadOnlyList<ImageCandidate>? ToCandidates(
+    private static IReadOnlyList<LogoRequest>? ToCandidates(
         List<EspnLogo>? logos, Func<EspnLogo, bool>? predicate = null, bool keep = true) =>
         logos is null ? null
         : [.. logos
             .Where(l => !string.IsNullOrEmpty(l.Href))
             .Where(l => predicate is null || predicate(l) == keep)
-            .Select(l => new ImageCandidate(
-                LogoRels.Normalize(l.Rel ?? []), l.Href, l.Width, l.Height, l.LastUpdated))];
+            .Select(l => new LogoRequest(LogoRels.Normalize(l.Rel ?? []), l.Href))];
 
     private static string? Coalesce(string? a, string? b) =>
         !string.IsNullOrWhiteSpace(a) ? a : !string.IsNullOrWhiteSpace(b) ? b : null;

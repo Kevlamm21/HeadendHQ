@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.Leagues;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
@@ -31,9 +30,6 @@ public class SyncSportsAndLeaguesHandler(
         {
             var sport = await UpsertSportAsync(descriptor, ct);
 
-            if (!SourceSettings.CoversSport(descriptor.Slug))
-                continue;
-
             leaguesUpserted += await SyncLeaguesAsync(sport, descriptor.Slug, ct);
             await unitOfWork.SaveChanges(ct);
         }
@@ -42,7 +38,7 @@ public class SyncSportsAndLeaguesHandler(
         return new SyncCatalogResult(sports.Count, leaguesUpserted);
     }
 
-    private async Task<Sport> UpsertSportAsync(SportDescriptor descriptor, CancellationToken ct)
+    private async Task<Sport> UpsertSportAsync(SportRequest descriptor, CancellationToken ct)
     {
         var sport = await workspace.LoadSingleOrDefault(new SportBySlugSpec(descriptor.Slug), ct);
 

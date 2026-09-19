@@ -32,7 +32,7 @@ builder.ConfigureSixLabors();
 builder.ConfigureJobs();
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
-builder.ConfigureHangfire();
+builder.ConfigureHangfire(dbPath);
 
 var app = builder.Build();
 

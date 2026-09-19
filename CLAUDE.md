@@ -41,3 +41,5 @@ HeadendHQ/                  ← repo root
 
 
 You should not run any tests in memory or attempt to run a real database, when your work is completed you can run a dotnet build then give me a test plan to test what you just implimented
+
+Do not include <Summary> comments unless a method is hacky in nature. THe code should speak for itself in most cases unless what we are doing is convoluted in nature. 

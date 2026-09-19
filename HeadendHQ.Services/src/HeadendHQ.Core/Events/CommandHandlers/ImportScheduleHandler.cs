@@ -1,12 +1,10 @@
-using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
-using HeadendHQ.Core.Catalog.Broadcasters.Specifications;
 using HeadendHQ.Core.Catalog.Broadcasters;
-using HeadendHQ.Core.Catalog.Leagues.Specifications;
+using HeadendHQ.Core.Catalog.Broadcasters.CommandHandlers;
 using HeadendHQ.Core.Catalog.Leagues;
-using HeadendHQ.Core.Catalog.Sources;
+using HeadendHQ.Core.Catalog.Leagues.Specifications;
+using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Catalog.Teams.CommandHandlers;
 using HeadendHQ.Core.Catalog.Teams.Specifications;
-using HeadendHQ.Core.Catalog.Teams;
 using HeadendHQ.Core.Events.Specifications;
 using HeadendHQ.Core.Settings;
 using HeadendHQ.Core.Shared;
@@ -32,11 +30,23 @@ public class ImportScheduleHandler(
     : ICommandHandler<ImportScheduleCommand, ImportScheduleResult>
 {
     private record KeptEvent(
-        ScheduledEventDescriptor Descriptor,
+        SportingEventRequest Descriptor,
         League League,
         IReadOnlyList<(Broadcaster Broadcaster, int Priority)> Broadcasts,
-        CompetitorDescriptor Home,
-        CompetitorDescriptor Away);
+        CompetitorRequest Home,
+        CompetitorRequest Away);
+
+    private record PreparedEvent(
+        KeptEvent Game,
+        Team HomeTeam,
+        Team AwayTeam,
+        StreamingChoice Choice,
+        SportingEvent? Existing)
+    {
+        public SportingEventRequest Descriptor => Game.Descriptor;
+
+        public bool NeedsDetail => Existing is null || Existing.NeedsDetails;
+    }
 
     public async ValueTask<ImportScheduleResult> Handle(ImportScheduleCommand command, CancellationToken ct)
     {
@@ -47,7 +57,6 @@ public class ImportScheduleHandler(
 
         var followedLeagues = (await workspace.Load(new FollowedLeaguesSpec(), ct)).ToList();
         var followedTeams = (await workspace.Load(new FollowedTeamsSpec(), ct)).ToList();
-        var subscribed = (await workspace.Load(new SubscribedBroadcastersSpec(), ct)).ToList();
 
         if (followedLeagues.Count == 0)
         {
@@ -55,10 +64,7 @@ public class ImportScheduleHandler(
             return new ImportScheduleResult(0, 0, []);
         }
 
-        var query = new ScheduleQuery(
-            from, to,
-            [.. followedLeagues.Select(l => l.Slug)],
-            [.. subscribed.SelectMany(b => new[] { b.Slug }.Concat(b.Aliases)).Distinct()]);
+        var query = new ScheduleQuery(from, to, [.. followedLeagues.Select(l => l.Slug)]);
 
         var errors = new List<string>();
         var upserted = 0;
@@ -97,25 +103,35 @@ public class ImportScheduleHandler(
 
         var seenExternalIds = kept.Select(k => k.Descriptor.ExternalId).ToHashSet();
 
-        var upserted = 0;
-
         var ordered = kept.OrderBy(k => k.Descriptor.StartUtc).ToList();
 
-        for (var i = 0; i < ordered.Count; i++)
+        // Settle teams and streaming first so the detail batch below only covers games we will keep,
+        // then fetch every game's detail and every team's squad in one pass. Nothing in the persist
+        // loop afterwards touches the network.
+        var (prepared, skipped) = await PrepareAsync(source.SourceKey, ordered, errors, ct);
+
+        foreach (var externalId in skipped)
+            seenExternalIds.Remove(externalId);
+
+        var details = await mediator.Send(
+            new FetchEventDetailsQuery([.. prepared.Where(p => p.NeedsDetail).Select(ToTarget)]), ct);
+
+        var upserted = 0;
+
+        for (var i = 0; i < prepared.Count; i++)
         {
-            var game = ordered[i];
+            var game = prepared[i];
 
             try
             {
-                if (await IngestAsync(source.SourceKey, game, ct))
-                    upserted++;
-                else
-                    seenExternalIds.Remove(game.Descriptor.ExternalId);
+                details.TryGetValue(game.Descriptor.ExternalId, out var detail);
+                await IngestAsync(source.SourceKey, game, detail, ct);
+                upserted++;
             }
             catch (CatalogSourceThrottledException ex)
             {
                 logger.LogWarning(ex, "{Source}: throttled; {Remaining} event(s) left for the next run.",
-                    source.SourceKey, ordered.Count - i);
+                    source.SourceKey, prepared.Count - i);
                 errors.Add($"{source.SourceKey}: {ex.Message}");
                 break;
             }
@@ -135,8 +151,67 @@ public class ImportScheduleHandler(
         return (upserted, removed);
     }
 
+    private static EventDetailTarget ToTarget(PreparedEvent prepared) => new(
+        prepared.Descriptor.ExternalId,
+        prepared.Game.League.Id,
+        prepared.Descriptor.StartUtc,
+        prepared.HomeTeam.Id,
+        prepared.Game.Home.DisplayName,
+        prepared.AwayTeam.Id,
+        prepared.Game.Away.DisplayName);
+
+    private async Task<(List<PreparedEvent> Prepared, List<string> Skipped)> PrepareAsync(
+        string sourceKey, List<KeptEvent> ordered, List<string> errors, CancellationToken ct)
+    {
+        var prepared = new List<PreparedEvent>(ordered.Count);
+        var skipped = new List<string>();
+
+        foreach (var game in ordered)
+        {
+            var (descriptor, _, broadcasts, home, away) = game;
+
+            try
+            {
+                var choice = await StreamingResolver.ResolveAsync(
+                    readModel, descriptor.StartUtc, home.DisplayName, away.DisplayName, broadcasts, ct);
+
+                if (choice.Outcome is not StreamingOutcome.Stream)
+                {
+                    logger.LogInformation("Skipping {Away} at {Home} ({Id}): {Outcome} via {Broadcaster}.",
+                        away.DisplayName, home.DisplayName, descriptor.ExternalId,
+                        choice.Outcome, choice.Broadcaster?.Slug);
+                    skipped.Add(descriptor.ExternalId);
+                    continue;
+                }
+
+                var homeTeam = await ResolveTeamAsync(game.League, home, sourceKey, ct);
+                var awayTeam = await ResolveTeamAsync(game.League, away, sourceKey, ct);
+
+                var existing = await workspace.LoadSingleOrDefault(
+                    new SportingEventBySourceIdSpec(sourceKey, descriptor.ExternalId), ct);
+
+                prepared.Add(new PreparedEvent(game, homeTeam, awayTeam, choice, existing));
+            }
+            catch (CatalogSourceThrottledException ex)
+            {
+                logger.LogWarning(ex, "{Source}: throttled while preparing; the rest waits for the next run.",
+                    sourceKey);
+                errors.Add($"{sourceKey}: {ex.Message}");
+                break;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Failed to prepare {Name} ({Id}).", descriptor.Name, descriptor.ExternalId);
+                errors.Add($"{sourceKey} {descriptor.ExternalId}: {ex.Message}");
+                skipped.Add(descriptor.ExternalId);
+            }
+        }
+
+        return (prepared, skipped);
+    }
+
     private async Task<List<KeptEvent>> SelectAsync(
-        IReadOnlyList<ScheduledEventDescriptor> descriptors,
+        IReadOnlyList<SportingEventRequest> descriptors,
         List<League> followedLeagues,
         EventFollowFilter filter,
         CancellationToken ct)
@@ -167,31 +242,11 @@ public class ImportScheduleHandler(
         return kept;
     }
 
-    private async Task<bool> IngestAsync(string sourceKey, KeptEvent game, CancellationToken ct)
+    private async Task IngestAsync(
+        string sourceKey, PreparedEvent prepared, EventDetail? detail, CancellationToken ct)
     {
-        var (descriptor, league, broadcasts, home, away) = game;
-
-        var choice = await StreamingResolver.ResolveAsync(
-            readModel, descriptor.StartUtc, home.DisplayName, away.DisplayName, broadcasts, ct);
-
-        if (choice.Outcome is not StreamingOutcome.Stream)
-        {
-            logger.LogInformation("Skipping {Away} at {Home} ({Id}): {Outcome} via {Broadcaster}.",
-                away.DisplayName, home.DisplayName, descriptor.ExternalId, choice.Outcome, choice.Broadcaster?.Slug);
-            return false;
-        }
-
-        var homeTeam = await ResolveTeamAsync(league, home, sourceKey, ct);
-        var awayTeam = await ResolveTeamAsync(league, away, sourceKey, ct);
-
-        var existing = await workspace.LoadSingleOrDefault(
-            new SportingEventBySourceIdSpec(sourceKey, descriptor.ExternalId), ct);
-
-        EventDetail? detail = null;
-        if (existing is null || existing.NeedsDetails)
-            detail = await mediator.Send(new FetchEventDetailQuery(
-                league.Id, descriptor.ExternalId, descriptor.StartUtc,
-                homeTeam.Id, home.DisplayName, awayTeam.Id, away.DisplayName), ct);
+        var (game, homeTeam, awayTeam, choice, existing) = prepared;
+        var (descriptor, league, _, home, away) = game;
 
         var sportingEvent = existing
             ?? new SportingEvent(sourceKey, descriptor.ExternalId, league.Id, descriptor.StartUtc);
@@ -223,12 +278,10 @@ public class ImportScheduleHandler(
 
         if (sportingEvent.NeedsTitle && LocalDay.IsToday(sportingEvent.StartUtc))
             await mediator.Send(new ProduceTitleForEventCommand(sportingEvent.Id), ct);
-
-        return true;
     }
 
     private async Task<List<(Broadcaster Broadcaster, int Priority)>> ResolveSubscribedBroadcastsAsync(
-        ScheduledEventDescriptor descriptor, CancellationToken ct)
+        SportingEventRequest descriptor, CancellationToken ct)
     {
         var subscribed = new List<(Broadcaster Broadcaster, int Priority)>();
 
@@ -247,7 +300,7 @@ public class ImportScheduleHandler(
     private readonly HashSet<int> _logoAttempts = [];
 
     private async Task<Team> ResolveTeamAsync(
-        League league, CompetitorDescriptor competitor, string sourceKey, CancellationToken ct)
+        League league, CompetitorRequest competitor, string sourceKey, CancellationToken ct)
     {
         var team = await FindOrCreateTeamAsync(league, competitor, sourceKey, ct);
 
@@ -258,7 +311,7 @@ public class ImportScheduleHandler(
     }
 
     private async Task<Team> FindOrCreateTeamAsync(
-        League league, CompetitorDescriptor competitor, string sourceKey, CancellationToken ct)
+        League league, CompetitorRequest competitor, string sourceKey, CancellationToken ct)
     {
         if (competitor.TeamExternalId is { Length: > 0 } externalId)
         {

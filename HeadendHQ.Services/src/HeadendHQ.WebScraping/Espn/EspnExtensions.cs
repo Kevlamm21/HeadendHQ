@@ -1,7 +1,7 @@
 using HeadendHQ.Core;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.WebScraping.Espn.Catalog;
 using HeadendHQ.WebScraping.Espn.Transport;
+using HeadendHQ.WebScraping.Transport;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,22 +11,17 @@ internal static class EspnExtensions
 {
     internal static void ConfigureEspn(this WebApplicationBuilder builder)
     {
-        builder.Services.AddHttpClient<EspnTransport>(c => c.Timeout = TimeSpan.FromSeconds(30))
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.All,
-            });
+        builder.Services.AddTransportProfiles(EspnProfiles.All);
 
-        builder.Services.AddScoped<EspnApiGate>();
-        builder.Services.AddScoped<EspnCdnGate>();
-
-        builder.Services.AddScoped<ISportsCatalogSource, EspnSportsCatalogSource>();
-        builder.Services.AddScoped<IBroadcasterCatalogSource, EspnBroadcasterCatalogSource>();
-        builder.Services.AddScoped<IImageFetcher, EspnImageFetcher>();
+        // Registered once and handed out under both interfaces, so a scope gets one instance rather
+        // than two of the same class.
+        builder.Services.AddScoped<EspnCatalogSource>();
+        builder.Services.AddScoped<ISportsCatalogSource>(sp => sp.GetRequiredService<EspnCatalogSource>());
+        builder.Services.AddScoped<IBroadcasterCatalogSource>(sp => sp.GetRequiredService<EspnCatalogSource>());
+        builder.Services.AddScoped<IScheduleSource, EspnScheduleSource>();
+        builder.Services.AddScoped<IEventDetailSource, EspnEventDetailSource>();
 
         builder.Services.AddSingleton<EspnLinkResolver>();
         builder.Services.AddSingleton<IAdbExtractor, EspnExtractor>();
-        builder.Services.AddScoped<IScheduleSource, EspnScheduleSource>();
-        builder.Services.AddScoped<IEventDetailSource, EspnEventDetailSource>();
     }
 }

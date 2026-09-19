@@ -1,6 +1,5 @@
 using HeadendHQ.Core.Catalog;
 using HeadendHQ.Core.Catalog.Leagues;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Teams;
 
 namespace HeadendHQ.Core.Events;
@@ -21,11 +20,11 @@ public sealed class EventFollowFilter
         }
     }
 
-    public bool IsFollowed(League league, ScheduledEventDescriptor descriptor) =>
+    public bool IsFollowed(League league, SportingEventRequest descriptor) =>
         league.IsFollowed &&
         (!league.SupportsTeams || descriptor.Competitors.Any(c => IsFollowedTeam(league.Id, c)));
 
-    private bool IsFollowedTeam(int leagueId, CompetitorDescriptor competitor) =>
+    private bool IsFollowedTeam(int leagueId, CompetitorRequest competitor) =>
         (competitor.TeamExternalId is { Length: > 0 } externalId
             && _externalIdsByLeague.TryGetValue(leagueId, out var ids) && ids.Contains(externalId))
         || (_namesByLeague.TryGetValue(leagueId, out var names) && names.Contains(competitor.DisplayName));

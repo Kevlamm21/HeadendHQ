@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
 
 namespace HeadendHQ.Core.Catalog;
 
@@ -32,7 +31,7 @@ public sealed class LogoPolicy
 
     public string Selected { get; }
 
-    public IReadOnlyList<ImageCandidate> Choose(IEnumerable<ImageCandidate>? candidates)
+    public IReadOnlyList<LogoRequest> Choose(IEnumerable<LogoRequest>? candidates)
     {
         var usable = (candidates ?? []).Where(c => c.Url is { Length: > 0 }).ToList();
 
@@ -47,11 +46,11 @@ public sealed class LogoPolicy
         return new[] { Selected }.Concat(Pull).Concat(Fallback).FirstOrDefault(held.Contains);
     }
 
-    public static string LabelFor(ImageCandidate candidate) =>
-        string.IsNullOrWhiteSpace(candidate.Rel) ? LogoRels.Default : candidate.Rel;
+    public static string LabelFor(LogoRequest candidate) =>
+        string.IsNullOrWhiteSpace(candidate.Label) ? LogoRels.Default : candidate.Label;
 
-    private static List<ImageCandidate> Pick(List<ImageCandidate> candidates, IEnumerable<string> rels) =>
+    private static List<LogoRequest> Pick(List<LogoRequest> candidates, IEnumerable<string> rels) =>
         [.. rels
             .Select(rel => candidates.FirstOrDefault(c => LabelFor(c).Equals(rel, StringComparison.OrdinalIgnoreCase)))
-            .OfType<ImageCandidate>()];
+            .OfType<LogoRequest>()];
 }

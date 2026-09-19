@@ -2,6 +2,8 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog.Sports;
 
+public record SportRequest(string ExternalId, string Slug, string Name);
+
 public class Sport : IEntity<int>, IExternalRef
 {
     private Sport() { }

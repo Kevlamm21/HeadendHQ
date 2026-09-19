@@ -1,7 +1,7 @@
 using Hangfire;
 using Hangfire.AspNetCore;
-using Hangfire.InMemory;
 using Hangfire.Server;
+using Hangfire.Storage.SQLite;
 using HeadendHQ.Core.Shared;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,10 +11,19 @@ namespace HeadendHQ.Hangfire;
 
 public static class HangfireExtensions
 {
-    public static void ConfigureHangfire(this WebApplicationBuilder builder)
+    public static void ConfigureHangfire(this WebApplicationBuilder builder, string dbPath)
     {
         builder.Services.AddHangfire(config => config
-            .UseInMemoryStorage());
+            .UseSQLiteStorage(dbPath, new SQLiteStorageOptions
+            {
+                QueuePollInterval = TimeSpan.FromSeconds(15),
+
+                // A scrape runs for minutes, and a job interrupted by a restart only returns to the
+                // queue once this lapses.
+                InvisibilityTimeout = TimeSpan.FromMinutes(30),
+                JobExpirationCheckInterval = TimeSpan.FromHours(1),
+            })
+            .WithJobExpirationTimeout(TimeSpan.FromDays(7)));
 
         builder.Services.AddSingleton<JobActivator, UnitOfWorkActivator>();
         builder.Services.AddHangfireServer();

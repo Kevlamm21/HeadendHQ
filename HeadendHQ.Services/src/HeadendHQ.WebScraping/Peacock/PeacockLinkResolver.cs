@@ -1,24 +1,28 @@
 using HeadendHQ.Core;
+using HeadendHQ.WebScraping.Transport;
 using Microsoft.Playwright;
 
 namespace HeadendHQ.WebScraping.Peacock;
 
-public class PeacockLinkResolver : ILinkResolver
+internal sealed class PeacockLinkResolver(TransportRegistry transport) : ILinkResolver
 {
-    public async Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
+    public Task<string?> ResolveAsync(string? rawLink, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(rawLink))
-            return null;
+            return Task.FromResult<string?>(null);
 
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
-        var page = await browser.NewPageAsync();
+        return transport.RunAsync(rawLink, async token =>
+        {
+            using var playwright = await Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+            var page = await browser.NewPageAsync();
 
-        await page.GotoAsync(rawLink, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await page.GotoAsync(rawLink, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
 
-        ct.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested();
 
-        var uri = new Uri(page.Url);
-        return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";
+            var uri = new Uri(page.Url);
+            return (string?)$"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";
+        }, ct);
     }
 }

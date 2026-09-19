@@ -1,182 +1,138 @@
 using System.Text.Json;
-using HeadendHQ.Core.Catalog.Sources;
-using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core;
+using HeadendHQ.Core.Events;
 using HeadendHQ.WebScraping.Espn.Models;
 using HeadendHQ.WebScraping.Espn.Transport;
+using HeadendHQ.WebScraping.Transport;
 using Microsoft.Extensions.Logging;
 
 namespace HeadendHQ.WebScraping.Espn.Catalog;
 
 internal sealed class EspnEventDetailSource(
-    EspnTransport transport,
+    WebTransport transport,
     ILogger<EspnEventDetailSource> logger) : IEventDetailSource
 {
-    public string SourceKey => SourceKeys.Espn;
-
-    public async Task<EventDetailDescriptor?> GetDetailAsync(EventKey key, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<string, EventDetailRequest>> GetDetailsAsync(
+        IReadOnlyList<EventKey> keys, CancellationToken ct)
     {
-        var summary = await FetchSummaryAsync(key, ct);
-        if (summary is null)
-            return null;
+        var details = new Dictionary<string, EventDetailRequest>(StringComparer.Ordinal);
 
-        var competition = summary.Header?.Competitions?.FirstOrDefault();
-        var series = competition?.Series?.FirstOrDefault();
+        var squads = new Dictionary<(string, string), IReadOnlyList<AthleteRequest>>();
+        var calls = 0;
 
-        return new EventDetailDescriptor(
-            VenueName: summary.GameInfo?.Venue?.FullName,
-            Note: summary.Header?.GameNote,
-            SeriesType: series?.Type,
-            SeriesSummary: series?.Summary,
-            Cast: BuildCast(summary));
-    }
-
-    private static List<CastCandidate> BuildCast(EspnSummaryRoot summary)
-    {
-        var candidates = FromRosters(summary);
-
-        if (candidates.Count == 0)
-            candidates = FromLeaders(summary);
-
-        if (candidates.Count == 0)
-            candidates = FromBoxscore(summary);
-
-        MergeProbables(summary, candidates);
-        return candidates;
-    }
-
-    private static List<CastCandidate> FromRosters(EspnSummaryRoot summary)
-    {
-        var candidates = new List<CastCandidate>();
-
-        foreach (var team in summary.Rosters ?? [])
+        foreach (var slate in keys.GroupBy(k => (k.SportSlug, k.LeagueSlug, k.Date)))
         {
-            var isHome = string.Equals(team.HomeAway, "home", StringComparison.OrdinalIgnoreCase);
+            ct.ThrowIfCancellationRequested();
 
-            foreach (var entry in team.Roster ?? [])
+            var (sportSlug, leagueSlug, date) = slate.Key;
+            var wanted = slate.Select(k => k.EventExternalId).ToHashSet(StringComparer.Ordinal);
+
+            calls++;
+
+            foreach (var espnEvent in await FetchSlateAsync(sportSlug, leagueSlug, date, ct))
             {
-                if (entry.Athlete is null)
+                if (!wanted.Contains(espnEvent.Id))
                     continue;
 
-                candidates.Add(new CastCandidate(
-                    ToDescriptor(entry.Athlete, team.Team?.Id),
-                    isHome,
-                    team.Team?.DisplayName ?? string.Empty,
-                    team.Team?.Id,
-                    IsListedStarter: entry.Starter == true,
-                    InjuryStatus: InjuryOf(entry.Athlete)));
+                var competition = espnEvent.Competitions?.FirstOrDefault();
+                if (competition is null)
+                    continue;
+
+                var seasonYear = espnEvent.Season?.Year ?? date.Year;
+
+                details[espnEvent.Id] = new EventDetailRequest(
+                    VenueName: competition.Venue?.FullName,
+                    Note: competition.Notes?
+                        .Select(n => n.Headline)
+                        .FirstOrDefault(h => !string.IsNullOrWhiteSpace(h)),
+                    SeriesType: competition.Series?.Type,
+                    SeriesSummary: competition.Series?.Summary,
+                    SeasonYear: espnEvent.Season?.Year,
+                    SeasonType: espnEvent.Season?.Type,
+                    Cast: await BuildCastAsync(sportSlug, leagueSlug, seasonYear, competition, squads, ct));
             }
         }
 
-        return candidates;
+        logger.LogInformation(
+            "ESPN detail: {Found} of {Wanted} event(s) from {Calls} scoreboard call(s) and {Squads} squad read(s).",
+            details.Count, keys.Count, calls, squads.Count);
+
+        return details;
     }
 
-    private static List<CastCandidate> FromLeaders(EspnSummaryRoot summary)
+    private async Task<List<CastRequest>> BuildCastAsync(
+        string sportSlug,
+        string leagueSlug,
+        int seasonYear,
+        EspnCompetition competition,
+        Dictionary<(string, string), IReadOnlyList<AthleteRequest>> squads,
+        CancellationToken ct)
     {
-        var candidates = new List<CastCandidate>();
+        var cast = new List<CastRequest>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var team in summary.Leaders ?? [])
-        {
-            foreach (var athlete in (team.Leaders ?? [])
-                         .SelectMany(category => category.Leaders ?? [])
-                         .Select(entry => entry.Athlete)
-                         .Where(a => a is not null))
-            {
-                candidates.Add(new CastCandidate(
-                    ToDescriptor(athlete!, team.Team?.Id),
-                    IsHomeFor(summary, team.Team?.Id),
-                    team.Team?.DisplayName ?? string.Empty,
-                    team.Team?.Id,
-                    IsStatLeader: true,
-                    InjuryStatus: InjuryOf(athlete!)));
-            }
-        }
-
-        return candidates;
-    }
-
-    private static List<CastCandidate> FromBoxscore(EspnSummaryRoot summary)
-    {
-        var candidates = new List<CastCandidate>();
-
-        foreach (var teamPlayers in summary.Boxscore?.Players ?? [])
-        {
-            foreach (var athlete in (teamPlayers.Statistics ?? [])
-                         .SelectMany(stat => stat.Athletes ?? [])
-                         .Select(entry => entry.Athlete)
-                         .Where(a => a is not null))
-            {
-                candidates.Add(new CastCandidate(
-                    ToDescriptor(athlete!, teamPlayers.Team?.Id),
-                    IsHomeFor(summary, teamPlayers.Team?.Id),
-                    teamPlayers.Team?.DisplayName ?? string.Empty,
-                    teamPlayers.Team?.Id,
-                    InjuryStatus: InjuryOf(athlete!)));
-            }
-        }
-
-        return candidates;
-    }
-
-    private static void MergeProbables(EspnSummaryRoot summary, List<CastCandidate> candidates)
-    {
-        var competitors = summary.Header?.Competitions?.FirstOrDefault()?.Competitors ?? [];
-
-        foreach (var competitor in competitors)
+        foreach (var competitor in competition.Competitors ?? [])
         {
             var isHome = string.Equals(competitor.HomeAway, "home", StringComparison.OrdinalIgnoreCase);
 
-            foreach (var probable in competitor.Probables ?? [])
-            {
-                if (probable.Athlete is null)
-                    continue;
+            var leaders = (competitor.Leaders ?? [])
+                .SelectMany(category => category.Leaders ?? [])
+                .Select(entry => entry.Athlete)
+                .OfType<EspnLeaderAthlete>()
+                .ToList();
 
-                var index = candidates.FindIndex(c => c.Athlete.ExternalId == probable.Athlete.Id);
+            var starred = leaders.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
 
-                if (index >= 0)
-                    candidates[index] = candidates[index] with { IsProbableStarter = true };
-                else
-                    candidates.Add(new CastCandidate(
-                        ToDescriptor(probable.Athlete, competitor.Team?.Id),
+            if (competitor.Team?.Id is { Length: > 0 } teamId)
+                foreach (var athlete in await SquadAsync(sportSlug, leagueSlug, teamId, seasonYear, squads, ct))
+                    if (seen.Add(athlete.ExternalId))
+                        cast.Add(new CastRequest(
+                            athlete, isHome, IsStatLeader: starred.Contains(athlete.ExternalId)));
+
+            foreach (var athlete in leaders)
+                if (seen.Add(athlete.Id))
+                    cast.Add(new CastRequest(
+                        new AthleteRequest(
+                            ExternalId: athlete.Id,
+                            DisplayName: athlete.DisplayName ?? "Unknown",
+                            Position: athlete.Position?.Abbreviation,
+                            HeadshotUrl: athlete.Headshot),
                         isHome,
-                        competitor.Team?.DisplayName ?? string.Empty,
-                        competitor.Team?.Id,
-                        IsProbableStarter: true));
-            }
+                        IsStatLeader: true));
         }
+
+        return cast;
     }
 
-    private static bool IsHomeFor(EspnSummaryRoot summary, string? teamId) =>
-        teamId is not null &&
-        summary.Header?.Competitions?.FirstOrDefault()?.Competitors?
-            .FirstOrDefault(c => c.Team?.Id == teamId)?.HomeAway is { } homeAway &&
-        homeAway.Equals("home", StringComparison.OrdinalIgnoreCase);
+    private async Task<IReadOnlyList<AthleteRequest>> SquadAsync(
+        string sportSlug,
+        string leagueSlug,
+        string teamId,
+        int seasonYear,
+        Dictionary<(string, string), IReadOnlyList<AthleteRequest>> squads,
+        CancellationToken ct)
+    {
+        if (squads.TryGetValue((leagueSlug, teamId), out var cached))
+            return cached;
 
-    private static string? InjuryOf(EspnAthlete athlete) =>
-        athlete.Injuries?.FirstOrDefault()?.Status ?? athlete.Status?.Type;
+        return squads[(leagueSlug, teamId)] = await EspnSquad.FetchAsync(
+            transport, sportSlug, leagueSlug, teamId, seasonYear, logger, ct);
+    }
 
-    private static AthleteDescriptor ToDescriptor(EspnAthlete athlete, string? teamExternalId) =>
-        new(athlete.Id,
-            athlete.DisplayName ?? "Unknown",
-            athlete.ShortName,
-            athlete.Position?.Abbreviation ?? athlete.Position?.DisplayName,
-            athlete.Jersey,
-            athlete.Experience?.Years,
-            athlete.Headshot?.Href,
-            teamExternalId);
-
-    private async Task<EspnSummaryRoot?> FetchSummaryAsync(EventKey key, CancellationToken ct)
+    private async Task<List<EspnScoreboardEvent>> FetchSlateAsync(
+        string sportSlug, string leagueSlug, DateOnly date, CancellationToken ct)
     {
         try
         {
             var json = await transport.GetStringAsync(
-                EspnEndpoints.Summary(key.SportSlug, key.LeagueSlug, key.EventExternalId), ct);
+                EspnEndpoints.ScoreboardForDate(sportSlug, leagueSlug, date.ToString("yyyyMMdd")), ct);
 
-            return JsonSerializer.Deserialize<EspnSummaryRoot>(json);
+            return JsonSerializer.Deserialize<EspnScoreboardRoot>(json)?.Events ?? [];
         }
-        catch (Exception ex) when (ex is not OperationCanceledException and not EspnThrottledException)
+        catch (Exception ex) when (ex is not OperationCanceledException and not CatalogSourceThrottledException)
         {
-            logger.LogWarning(ex, "Failed to read summary for event {Event}.", key.EventExternalId);
-            return null;
+            logger.LogWarning(ex, "Failed to read the {League} scoreboard for {Date}.", leagueSlug, date);
+            return [];
         }
     }
 }

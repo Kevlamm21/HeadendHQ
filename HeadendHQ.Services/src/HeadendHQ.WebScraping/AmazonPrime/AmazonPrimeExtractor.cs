@@ -3,7 +3,7 @@ using HeadendHQ.Core;
 
 namespace HeadendHQ.WebScraping.AmazonPrime;
 
-public class AmazonPrimeExtractor(AmazonPrimeLinkResolver linkResolver) : IAdbExtractor
+internal sealed class AmazonPrimeExtractor(AmazonPrimeLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex IdPattern = new(@"\/detail\/([A-Za-z0-9.\-]+)", RegexOptions.Compiled);
 

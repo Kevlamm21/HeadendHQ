@@ -10,6 +10,14 @@ public enum BroadcasterKind
     Streaming
 }
 
+public record BroadcasterRequest(
+    string ExternalId,
+    string Slug,
+    string Name,
+    string? ShortName = null,
+    string? CallLetters = null,
+    IReadOnlyList<LogoRequest>? Logos = null);
+
 public class Broadcaster : IEntity<int>, IExternalRef
 {
     private Broadcaster() { }

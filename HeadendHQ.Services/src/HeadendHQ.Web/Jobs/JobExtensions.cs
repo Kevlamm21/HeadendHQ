@@ -28,13 +28,12 @@ public static class JobExtensions
             schedule,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Local });
 
-        BackgroundJob.Enqueue<StreamingServiceSyncJob>(job => job.RunAsync(CancellationToken.None));
-
         if (bool.TryParse(app.Configuration["NightlyJob:RunOnStartup"], out var runOnStartup) && runOnStartup)
             BackgroundJob.Enqueue<NightlyJob>(job => job.RunAsync(CancellationToken.None));
 
         if (freshDatabase)
         {
+            BackgroundJob.Enqueue<StreamingServiceSyncJob>(job => job.RunAsync(CancellationToken.None));
             BackgroundJob.Enqueue<CatalogSeedJob>(job => job.RunAsync(CancellationToken.None));
             BackgroundJob.Enqueue<BroadcasterDiscoveryJob>(job => job.RunAsync(CancellationToken.None));
         }

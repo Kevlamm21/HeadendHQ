@@ -24,7 +24,14 @@ public class CollectEventDetailHandler(
             return Unit.Value;
         }
 
-        var detail = await mediator.Send(FetchEventDetailQuery.For(sportingEvent), ct);
+        var details = await mediator.Send(
+            new FetchEventDetailsQuery([EventDetailTarget.For(sportingEvent)]), ct);
+
+        if (!details.TryGetValue(sportingEvent.ExternalId, out var detail))
+        {
+            logger.LogWarning("No detail came back for {Id}; leaving it for the next run.", sportingEvent.Id);
+            return Unit.Value;
+        }
 
         sportingEvent.ApplyDetail(detail);
         await unitOfWork.SaveChanges(ct);

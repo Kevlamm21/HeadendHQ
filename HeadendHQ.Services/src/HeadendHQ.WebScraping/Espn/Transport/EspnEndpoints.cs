@@ -6,7 +6,7 @@ internal static class EspnEndpoints
     public const string SiteWebApi = "https://site.web.api.espn.com";
     public const string CoreApi = "https://sports.core.api.espn.com";
 
-    public static string Sports() => $"{CoreApi}/v2/sports";
+    public static string Sports(int limit = 1000) => $"{CoreApi}/v2/sports?limit={limit}";
 
     public static string Sport(string sportSlug) => $"{CoreApi}/v2/sports/{sportSlug}";
 
@@ -22,14 +22,8 @@ internal static class EspnEndpoints
     public static string Team(string sportSlug, string leagueSlug, string teamId) =>
         $"{CoreApi}/v2/sports/{sportSlug}/leagues/{leagueSlug}/teams/{teamId}";
 
-    public static string Scoreboard(string sportSlug, string leagueSlug) =>
-        $"{SiteApi}/apis/site/v2/sports/{sportSlug}/{leagueSlug}/scoreboard";
-
     public static string ScoreboardForDate(string sportSlug, string leagueSlug, string yyyyMMdd) =>
         $"{SiteApi}/apis/site/v2/sports/{sportSlug}/{leagueSlug}/scoreboard?dates={yyyyMMdd}";
-
-    public static string Summary(string sportSlug, string leagueSlug, string eventId) =>
-        $"{SiteApi}/apis/site/v2/sports/{sportSlug}/{leagueSlug}/summary?event={eventId}";
 
     public static string Roster(string sportSlug, string leagueSlug, string teamId) =>
         $"{SiteApi}/apis/site/v2/sports/{sportSlug}/{leagueSlug}/teams/{teamId}/roster";
@@ -43,7 +37,7 @@ internal static class EspnEndpoints
     public static string MediaIndex(int page, int limit = 1000) =>
         $"{CoreApi}/v2/sports/basketball/leagues/nba/media?limit={limit}&page={page}";
 
-    public static string GuideFeed(string yyyyMMdd, int page, int limit, string? leagues, string? watch)
+    public static string GuideFeed(string yyyyMMdd, int page, int limit, string? leagues)
     {
         var url = $"{SiteWebApi}/apis/personalized/site/v2/guide/feed" +
                   "?region=us&lang=en&configuration=STREAM_MENU&platform=web&buyWindow=1m" +
@@ -53,9 +47,6 @@ internal static class EspnEndpoints
         if (!string.IsNullOrEmpty(leagues))
             url += $"&leagues={Uri.EscapeDataString(leagues)}";
 
-        if (!string.IsNullOrEmpty(watch))
-            url += $"&watch={Uri.EscapeDataString(watch)}";
-
         return url;
     }
 
@@ -63,8 +54,4 @@ internal static class EspnEndpoints
         url.StartsWith($"{SiteApi}/apis/site/", StringComparison.Ordinal)
             ? string.Concat(SiteWebApi, url.AsSpan(SiteApi.Length))
             : null;
-
-    public static string NormalizeRef(string href) =>
-        href.Replace("sports.core.api.espn.pvt", "sports.core.api.espn.com", StringComparison.OrdinalIgnoreCase)
-            .Replace("http://", "https://", StringComparison.OrdinalIgnoreCase);
 }

@@ -1,4 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Media.Specifications;
 using HeadendHQ.Core.Shared;
 using Mediator;

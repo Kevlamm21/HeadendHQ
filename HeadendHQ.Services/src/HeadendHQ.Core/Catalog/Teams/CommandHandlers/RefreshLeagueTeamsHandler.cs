@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.Leagues;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Catalog.Teams.Specifications;
 using HeadendHQ.Core.Shared;
@@ -28,7 +27,7 @@ public class RefreshLeagueTeamsHandler(
         }
 
         var sport = await workspace.LoadById<Sport, int>(league.SportId, ct);
-        var key = new LeagueKey(sport.Slug, league.Slug, league.ExternalIdFor(source.SourceKey));
+        var key = new LeagueKey(sport.Slug, league.Slug);
 
         var descriptors = await source.GetTeamsAsync(key, ct);
         var existing = (await workspace.Load(new TeamsByLeagueSpec(league.Id), ct))

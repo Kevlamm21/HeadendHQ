@@ -4,7 +4,7 @@ using HeadendHQ.Core;
 
 namespace HeadendHQ.WebScraping.Peacock;
 
-public class PeacockExtractor(PeacockLinkResolver linkResolver) : IAdbExtractor
+internal sealed class PeacockExtractor(PeacockLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex IdPattern = new(
         @"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$",

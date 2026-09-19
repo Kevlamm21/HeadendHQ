@@ -3,6 +3,19 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog.Teams;
 
+public record TeamRequest(
+    string ExternalId,
+    string DisplayName,
+    string? ShortDisplayName = null,
+    string? Slug = null,
+    string? Abbreviation = null,
+    string? Location = null,
+    string? Nickname = null,
+    string? PrimaryColorHex = null,
+    string? AlternateColorHex = null,
+    bool IsActive = true,
+    IReadOnlyList<LogoRequest>? Logos = null);
+
 public class Team : IEntity<int>, IExternalRef
 {
     private Team() { }

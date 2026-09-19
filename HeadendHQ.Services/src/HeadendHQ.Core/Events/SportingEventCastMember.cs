@@ -1,5 +1,3 @@
-using HeadendHQ.Core.Catalog.Sources;
-
 namespace HeadendHQ.Core.Events;
 
 public class SportingEventCastMember
@@ -24,4 +22,20 @@ public class SportingEventCastMember
 
 public record BilledAthlete(string Name, string? Role, int? HeadshotImageId);
 
-public record EventDetail(EventDetailDescriptor? Source, IReadOnlyList<BilledAthlete> Cast);
+public record EventDetail(EventDetailRequest? Source, IReadOnlyList<BilledAthlete> Cast);
+
+public record AthleteRequest(
+    string ExternalId,
+    string DisplayName,
+    string? Position = null,
+    int? ExperienceYears = null,
+    string? HeadshotUrl = null,
+    int? DepthRank = null,
+    string? InjuryStatus = null);
+
+public record CastRequest(
+    AthleteRequest Athlete,
+    bool IsHome,
+    bool IsListedStarter = false,
+    bool IsStatLeader = false,
+    bool IsProbableStarter = false);

@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.Leagues.Specifications;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Catalog.Sports;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
@@ -11,7 +10,7 @@ public static class LeagueCatalog
 {
     public static async Task<int> UpsertAsync(
         IWorkspace workspace, IMediator mediator, Sport sport, string sourceKey,
-        IReadOnlyList<LeagueDescriptor> descriptors, CancellationToken ct)
+        IReadOnlyList<LeagueRequest> descriptors, CancellationToken ct)
     {
         var logos = 0;
 
@@ -36,7 +35,7 @@ public static class LeagueCatalog
     }
 
     public static async Task<int> StoreLogosAsync(
-        IMediator mediator, League league, IReadOnlyList<ImageCandidate>? candidates, bool revalidate,
+        IMediator mediator, League league, IReadOnlyList<LogoRequest>? candidates, bool revalidate,
         CancellationToken ct)
     {
         var download = await CatalogLogoDownloader.DownloadAsync(

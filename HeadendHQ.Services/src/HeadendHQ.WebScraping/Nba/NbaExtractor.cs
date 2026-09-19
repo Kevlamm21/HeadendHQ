@@ -3,7 +3,7 @@ using HeadendHQ.Core;
 
 namespace HeadendHQ.WebScraping.Nba;
 
-public class NbaExtractor(NbaLinkResolver linkResolver) : IAdbExtractor
+internal sealed class NbaExtractor(NbaLinkResolver linkResolver) : IAdbExtractor
 {
     private static readonly Regex IdPattern = new(@"([0-9]{10})$", RegexOptions.Compiled);
 

@@ -1,8 +1,47 @@
 using HeadendHQ.Core.Catalog;
+using HeadendHQ.Core.Catalog.Broadcasters;
 using HeadendHQ.Core.Catalog.Leagues;
 using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Events;
+
+public record SportingEventRequest(
+    string ExternalId,
+    string LeagueSlug,
+    DateTime StartUtc,
+    string? Name,
+    IReadOnlyList<CompetitorRequest> Competitors,
+    IReadOnlyList<BroadcastRequest> Broadcasts,
+    string? WatchUrl = null,
+    int? SeasonYear = null,
+    int? SeasonType = null);
+
+// Colours and logos ride along from the schedule listing so a team we have never seen -- a European
+// side on an NBA card, say -- can be created with artwork without a second lookup. Nothing consumes
+// them yet; that lands with the team-logo refresh work.
+public record CompetitorRequest(
+    string? TeamExternalId,
+    string DisplayName,
+    bool IsHome,
+    string? PrimaryColorHex = null,
+    string? AlternateColorHex = null,
+    IReadOnlyList<LogoRequest>? Logos = null);
+
+public record BroadcastRequest(
+    string ExternalId,
+    string Slug,
+    string Name,
+    BroadcasterKind Kind,
+    int Priority = 0);
+
+public record EventDetailRequest(
+    string? VenueName = null,
+    string? Note = null,
+    string? SeriesType = null,
+    string? SeriesSummary = null,
+    int? SeasonYear = null,
+    int? SeasonType = null,
+    IReadOnlyList<CastRequest>? Cast = null);
 
 public class SportingEvent : Entity<Guid>
 {

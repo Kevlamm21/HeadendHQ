@@ -1,4 +1,4 @@
-namespace HeadendHQ.Core.Catalog.Sources;
+namespace HeadendHQ.Core;
 
 public record FetchedImage(byte[] Bytes, string ContentType, string? ETag, DateTimeOffset? LastModifiedUtc);
 

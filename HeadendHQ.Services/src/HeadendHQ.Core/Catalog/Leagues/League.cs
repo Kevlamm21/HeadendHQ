@@ -3,6 +3,15 @@ using HeadendHQ.Core.Shared;
 
 namespace HeadendHQ.Core.Catalog.Leagues;
 
+public record LeagueRequest(
+    string ExternalId,
+    string Slug,
+    string Name,
+    string? Abbreviation = null,
+    string? ShortName = null,
+    bool SupportsTeams = true,
+    IReadOnlyList<LogoRequest>? Logos = null);
+
 public class League : Entity<int>, IExternalRef
 {
     private League() { }

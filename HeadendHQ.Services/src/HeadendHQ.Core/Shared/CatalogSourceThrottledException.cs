@@ -1,3 +1,3 @@
-namespace HeadendHQ.Core.Catalog.Sources;
+namespace HeadendHQ.Core;
 
 public class CatalogSourceThrottledException(string message) : Exception(message);

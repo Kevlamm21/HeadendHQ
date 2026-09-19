@@ -1,5 +1,4 @@
 using HeadendHQ.Core.Catalog.CommandHandlers;
-using HeadendHQ.Core.Catalog.Sources;
 using HeadendHQ.Core.Media;
 using HeadendHQ.Core.Shared;
 using Mediator;
@@ -121,7 +120,7 @@ public class DiscoverBroadcastersHandler(
     }
 
     private async Task<int> StoreLogosAsync(
-        Broadcaster broadcaster, IReadOnlyList<ImageCandidate>? candidates, bool refresh, List<int> dropped,
+        Broadcaster broadcaster, IReadOnlyList<LogoRequest>? candidates, bool refresh, List<int> dropped,
         CancellationToken ct)
     {
         if (!refresh && broadcaster.HasFetchedLogos)
